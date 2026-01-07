@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details - Shopnora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #10B981; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navbar -->
+    <nav class="bg-white shadow p-3 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <a href="4.html">
+                <img src="https://i.postimg.cc/VNzGbSxM/20260102-184321.png" class="h-10">
+            </a>
+            <span class="font-bold text-green-600 text-lg hidden md:block">Shopnora</span>
+        </div>
+        <a href="4.html" class="text-green-600 hover:text-green-800 font-bold">
+            <i class="fas fa-arrow-left mr-1"></i> সব পণ্যে ফিরে যান
+        </a>
+    </nav>
+
+    <!-- Product Detail Section -->
+    <div class="container mx-auto px-4 py-8">
+        <div id="product-loader" class="flex flex-col items-center justify-center py-20">
+            <div class="spinner mb-4"></div>
+            <p class="text-gray-500">পণ্যের তথ্য লোড হচ্ছে...</p>
+        </div>
+
+        <div id="product-detail" class="hidden">
+            <!-- Breadcrumb -->
+            <div class="mb-6 text-sm text-gray-500">
+                <a href="4.html" class="hover:text-green-600">হোম</a> / 
+                <a href="4.html" class="hover:text-green-600">পণ্য</a> / 
+                <span id="product-category" class="text-gray-700"></span> / 
+                <span id="product-name-breadcrumb" class="font-bold text-green-600"></span>
+            </div>
+
+            <!-- Main Product Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                <!-- Product Images -->
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="mb-4">
+                        <img id="main-product-image" src="" class="w-full h-80 object-contain rounded-lg bg-gray-100">
+                    </div>
+                    <div class="flex space-x-2 overflow-x-auto">
+                        <!-- Additional images can be added here -->
+                    </div>
+                </div>
+
+                <!-- Product Info -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h1 id="product-title" class="text-2xl md:text-3xl font-bold text-gray-800 mb-2"></h1>
+                    
+                    <div class="flex items-center mb-4">
+                        <div class="flex text-yellow-400 mr-2">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half-alt"></i>
+                        </div>
+                        <span class="text-gray-600 text-sm">(45 রিভিউ)</span>
+                    </div>
+
+                    <!-- Price Section -->
+                    <div class="mb-6">
+                        <div class="flex items-center mb-2">
+                            <span id="product-price" class="text-3xl font-bold text-green-600 mr-3"></span>
+                            <span id="product-regular-price" class="text-xl text-gray-400 line-through"></span>
+                            <span id="product-discount" class="ml-3 bg-red-100 text-red-600 px-2 py-1 rounded text-sm font-bold"></span>
+                        </div>
+                        <p class="text-gray-600">+ ডেলিভারি চার্জ</p>
+                    </div>
+
+                    <!-- Stock Status -->
+                    <div class="mb-6">
+                        <div class="flex items-center">
+                            <span id="stock-status" class="px-3 py-1 rounded-full text-sm font-bold mr-3"></span>
+                            <span id="stock-quantity" class="text-gray-600"></span>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-8">
+                        <h3 class="font-bold text-lg mb-2 text-gray-700">পণ্যের বিবরণ</h3>
+                        <p id="product-description" class="text-gray-600 leading-relaxed"></p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <div class="flex items-center border rounded-lg">
+                                <button id="decrease-qty" class="px-4 py-2 text-xl">-</button>
+                                <span id="product-qty" class="px-4 py-2 border-x font-bold">1</span>
+                                <button id="increase-qty" class="px-4 py-2 text-xl">+</button>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">স্টক:</p>
+                                <p id="available-stock" class="font-bold"></p>
+                            </div>
+                        </div>
+
+                        <button id="add-to-cart-btn" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 flex items-center justify-center">
+                            <i class="fas fa-shopping-cart mr-2"></i> কার্টে যোগ করুন
+                        </button>
+                        <button id="buy-now-btn" class="w-full bg-orange-500 text-white py-3 rounded-lg font-bold hover:bg-orange-600">
+                            এখনই কিনুন
+                        </button>
+                    </div>
+
+                    <!-- Social Share -->
+                    <div class="mt-8 pt-6 border-t">
+                        <h3 class="font-bold mb-3">সোশ্যাল মিডিয়ায় শেয়ার করুন</h3>
+                        <div class="flex space-x-3">
+                            <button onclick="shareProduct('facebook')" class="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                                <i class="fab fa-facebook-f mr-2"></i> Facebook
+                            </button>
+                            <button onclick="shareProduct('twitter')" class="flex-1 bg-blue-400 text-white py-2 rounded hover:bg-blue-500">
+                                <i class="fab fa-twitter mr-2"></i> Twitter
+                            </button>
+                            <button onclick="shareProduct('whatsapp')" class="flex-1 bg-green-500 text-white py-2 rounded hover:bg-green-600">
+                                <i class="fab fa-whatsapp mr-2"></i> WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Similar Products Section -->
+            <div class="mt-12">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">একই ক্যাটাগরির পণ্য</h2>
+                <div id="similar-products" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <!-- Similar products will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer (Same as main page) -->
+    <footer class="bg-gray-900 text-white pt-12 pb-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Company Info -->
+                <div>
+                    <div class="flex items-center gap-3 mb-6">
+                        <img src="https://i.postimg.cc/VNzGbSxM/20260102-184321.png" class="h-12">
+                        <span class="font-bold text-2xl text-green-400">Shopnora</span>
+                    </div>
+                    <p class="text-gray-400 mb-4">দিনাজপুরের সেরা অনলাইন শপিং প্ল্যাটফর্ম। গুণগতমানের পণ্য, দ্রুত ডেলিভারি এবং নির্ভরযোগ্য সার্ভিস।</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-xl font-bold mb-6 text-white">দ্রুত লিংক</h3>
+                    <ul class="space-y-3">
+                        <li><a href="4.html" class="text-gray-400 hover:text-green-400 transition">হোম</a></li>
+                        <li><a href="4.html" class="text-gray-400 hover:text-green-400 transition">পণ্য ব্রাউজ করুন</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">আমাদের সম্পর্কে</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">যোগাযোগ করুন</a></li>
+                    </ul>
+                </div>
+
+                <!-- Customer Service -->
+                <div>
+                    <h3 class="text-xl font-bold mb-6 text-white">গ্রাহক সেবা</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">সাহায্য কেন্দ্র</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">প্রাইভেসি পলিসি</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">শর্তাবলী</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">রিটার্ন পলিসি</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">এফ.এ.কিউ</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact & Newsletter -->
+                <div>
+                    <h3 class="text-xl font-bold mb-6 text-white">যোগাযোগ</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-map-marker-alt text-green-400 mt-1"></i>
+                            <p class="text-gray-400">কাশীডাঙ্গা বাজার, বিরল, দিনাজপুর</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-phone text-green-400"></i>
+                            <p class="text-gray-400">01737-470024</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-envelope text-green-400"></i>
+                            <p class="text-gray-400">support@shopnora.com</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Newsletter -->
+                    <div class="mt-6">
+                        <h4 class="font-bold mb-3">নিউজলেটার সাবস্ক্রাইব</h4>
+                        <div class="flex">
+                            <input type="email" placeholder="আপনার ইমেইল" class="flex-1 px-4 py-2 rounded-l-lg text-gray-900">
+                            <button class="bg-green-600 px-4 py-2 rounded-r-lg hover:bg-green-700">সাবস্ক্রাইব</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="border-t border-gray-800 mt-12 pt-8">
+                <h4 class="text-center font-bold mb-4">সাপোর্টেড পেমেন্ট মেথড</h4>
+                <div class="flex justify-center space-x-6 mb-6">
+                    <img src="https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" class="h-10">
+                    <img src="https://freelogopng.com/images/all_img/1679248787nagad-logo.png" class="h-10">
+                    <i class="fas fa-credit-card text-4xl text-gray-400"></i>
+                    <i class="fas fa-money-bill-wave text-4xl text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Copyright -->
+            <div class="text-center pt-6 border-t border-gray-800">
+                <p class="text-gray-500 text-sm">&copy; 2026 Shopnora. সকল অধিকার সংরক্ষিত।</p>
+                <p class="text-gray-600 text-xs mt-2">ডেভেলপড বাই <span class="text-green-400">Shopnora টেক টিম</span></p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- Firebase Setup ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8vG1hw9CM3xx5hSK4uphBhDhFg3vOuUU",
+            authDomain: "shopnora2.firebaseapp.com",
+            projectId: "shopnora2",
+            storageBucket: "shopnora2.firebasestorage.app",
+            messagingSenderId: "51821256004",
+            appId: "1:51821256004:web:45f58b800c3852ba6e4b11",
+            measurementId: "G-361G2NMH7Z"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // --- Global Variables ---
+        let currentProduct = null;
+        let similarProducts = [];
+        let quantity = 1;
+
+        // --- Get Product ID from URL ---
+        function getProductIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        // --- Load Product Details ---
+        async function loadProductDetails() {
+            const productId = getProductIdFromUrl();
+            if (!productId) {
+                document.getElementById('product-detail').innerHTML = '<div class="text-center py-20"><h2 class="text-2xl text-red-600 mb-4">পণ্য খুঁজে পাওয়া যায়নি</h2><a href="4.html" class="text-green-600 hover:underline">সব পণ্যে ফিরে যান</a></div>';
+                document.getElementById('product-detail').classList.remove('hidden');
+                document.getElementById('product-loader').classList.add('hidden');
+                return;
+            }
+
+            try {
+                const doc = await db.collection('products').doc(productId).get();
+                
+                if (!doc.exists) {
+                    document.getElementById('product-detail').innerHTML = '<div class="text-center py-20"><h2 class="text-2xl text-red-600 mb-4">পণ্য খুঁজে পাওয়া যায়নি</h2><a href="4.html" class="text-green-600 hover:underline">সব পণ্যে ফিরে যান</a></div>';
+                    document.getElementById('product-detail').classList.remove('hidden');
+                    document.getElementById('product-loader').classList.add('hidden');
+                    return;
+                }
+
+                currentProduct = { id: doc.id, ...doc.data() };
+                displayProductDetails();
+                loadSimilarProducts(currentProduct.category, currentProduct.id);
+                
+            } catch (error) {
+                console.error("Error loading product:", error);
+                document.getElementById('product-detail').innerHTML = '<div class="text-center py-20"><h2 class="text-2xl text-red-600 mb-4">লোড করতে সমস্যা হয়েছে</h2><a href="4.html" class="text-green-600 hover:underline">সব পণ্যে ফিরে যান</a></div>';
+                document.getElementById('product-detail').classList.remove('hidden');
+                document.getElementById('product-loader').classList.add('hidden');
+            }
+        }
+
+        // --- Display Product Details ---
+        function displayProductDetails() {
+            const product = currentProduct;
+            
+            // Update product information
+            document.getElementById('product-title').textContent = product.name;
+            document.getElementById('product-name-breadcrumb').textContent = product.name.substring(0, 30) + (product.name.length > 30 ? '...' : '');
+            document.getElementById('product-category').textContent = product.category || 'পণ্য';
+            document.getElementById('main-product-image').src = product.image;
+            document.getElementById('product-price').textContent = '৳' + product.price;
+            
+            if (product.regularPrice && product.regularPrice > product.price) {
+                document.getElementById('product-regular-price').textContent = '৳' + product.regularPrice;
+                const discount = Math.round(((product.regularPrice - product.price) / product.regularPrice) * 100);
+                document.getElementById('product-discount').textContent = discount + '% ছাড়';
+            } else {
+                document.getElementById('product-regular-price').classList.add('hidden');
+                document.getElementById('product-discount').classList.add('hidden');
+            }
+            
+            document.getElementById('product-description').textContent = product.description || 'কোনো বিবরণ নেই।';
+            
+            // Stock status
+            const stockStatus = document.getElementById('stock-status');
+            if (product.stock > 0) {
+                stockStatus.textContent = 'ইন স্টক';
+                stockStatus.className = 'px-3 py-1 rounded-full text-sm font-bold mr-3 bg-green-100 text-green-800';
+            } else {
+                stockStatus.textContent = 'স্টক আউট';
+                stockStatus.className = 'px-3 py-1 rounded-full text-sm font-bold mr-3 bg-red-100 text-red-800';
+            }
+            
+            document.getElementById('stock-quantity').textContent = product.stock > 0 ? `${product.stock} পিস প্রাপ্য` : 'স্টক নেই';
+            document.getElementById('available-stock').textContent = product.stock > 0 ? `${product.stock} পিস` : 'স্টক নেই';
+            
+            // Enable/disable buttons based on stock
+            const addToCartBtn = document.getElementById('add-to-cart-btn');
+            const buyNowBtn = document.getElementById('buy-now-btn');
+            const decreaseBtn = document.getElementById('decrease-qty');
+            const increaseBtn = document.getElementById('increase-qty');
+            
+            if (product.stock > 0) {
+                addToCartBtn.disabled = false;
+                buyNowBtn.disabled = false;
+                decreaseBtn.disabled = false;
+                increaseBtn.disabled = false;
+                addToCartBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                buyNowBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                addToCartBtn.disabled = true;
+                buyNowBtn.disabled = true;
+                decreaseBtn.disabled = true;
+                increaseBtn.disabled = true;
+                addToCartBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                buyNowBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            
+            // Show product detail section
+            document.getElementById('product-loader').classList.add('hidden');
+            document.getElementById('product-detail').classList.remove('hidden');
+            
+            // Update page title
+            document.title = `${product.name} - Shopnora`;
+        }
+
+        // --- Load Similar Products ---
+        async function loadSimilarProducts(category, excludeId) {
+            try {
+                const snapshot = await db.collection('products')
+                    .where('category', '==', category)
+                    .where('stock', '>', 0)
+                    .limit(10)
+                    .get();
+                
+                similarProducts = [];
+                snapshot.forEach(doc => {
+                    if (doc.id !== excludeId) {
+                        similarProducts.push({ id: doc.id, ...doc.data() });
+                    }
+                });
+                
+                displaySimilarProducts();
+                
+            } catch (error) {
+                console.error("Error loading similar products:", error);
+                document.getElementById('similar-products').innerHTML = '<p class="text-gray-500 text-center col-span-full py-10">সদৃশ পণ্য লোড করতে সমস্যা হয়েছে</p>';
+            }
+        }
+
+        // --- Display Similar Products ---
+        function displaySimilarProducts() {
+            const container = document.getElementById('similar-products');
+            container.innerHTML = '';
+            
+            if (similarProducts.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center col-span-full py-10">এই ক্যাটাগরিতে আরও পণ্য পাওয়া যায়নি</p>';
+                return;
+            }
+            
+            // Display up to 5 similar products
+            similarProducts.slice(0, 5).forEach(product => {
+                const discount = product.regularPrice && product.regularPrice > product.price 
+                    ? Math.round(((product.regularPrice - product.price) / product.regularPrice) * 100)
+                    : 0;
+                
+                container.innerHTML += `
+                    <div class="bg-white rounded shadow p-2 flex flex-col h-full hover:shadow-lg transition">
+                        <div class="h-32 bg-gray-100 rounded mb-2 overflow-hidden flex items-center justify-center cursor-pointer" onclick="viewProduct('${product.id}')">
+                            <img src="${product.image}" class="h-full w-full object-contain">
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-800 line-clamp-2 cursor-pointer mb-2" onclick="viewProduct('${product.id}')">${product.name}</h3>
+                        <div class="mt-auto flex justify-between items-center pt-2">
+                            <div onclick="viewProduct('${product.id}')" class="cursor-pointer">
+                                <span class="text-green-600 font-bold">৳${product.price}</span>
+                                ${discount > 0 ? `<span class="text-xs text-red-500">${discount}% ছাড়</span>` : ''}
+                            </div>
+                            <button onclick="addToCartFromDetail('${product.id}', '${product.name}', ${product.price}, '${product.image}')" class="bg-green-600 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-700 shadow">
+                                <i class="fa-solid fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- Quantity Controls ---
+        document.getElementById('increase-qty').addEventListener('click', function() {
+            if (currentProduct && quantity < currentProduct.stock) {
+                quantity++;
+                document.getElementById('product-qty').textContent = quantity;
+            }
+        });
+
+        document.getElementById('decrease-qty').addEventListener('click', function() {
+            if (quantity > 1) {
+                quantity--;
+                document.getElementById('product-qty').textContent = quantity;
+            }
+        });
+
+        // --- Add to Cart ---
+        function addToCartFromDetail(productId, name, price, image) {
+            const cart = JSON.parse(localStorage.getItem('shopnora_cart')) || [];
+            const existingItem = cart.find(item => item.id === productId);
+            
+            if (existingItem) {
+                existingItem.qty += 1;
+            } else {
+                cart.push({
+                    id: productId,
+                    name: name,
+                    price: price,
+                    image: image,
+                    qty: 1
+                });
+            }
+            
+            localStorage.setItem('shopnora_cart', JSON.stringify(cart));
+            
+            // Show success message
+            alert(`${name} কার্টে যোগ করা হয়েছে!`);
+        }
+
+        document.getElementById('add-to-cart-btn').addEventListener('click', function() {
+            if (!currentProduct) return;
+            
+            addToCartFromDetail(
+                currentProduct.id,
+                currentProduct.name,
+                currentProduct.price,
+                currentProduct.image
+            );
+        });
+
+        // --- Buy Now ---
+        document.getElementById('buy-now-btn').addEventListener('click', function() {
+            if (!currentProduct) return;
+            
+            // Add to cart first
+            addToCartFromDetail(
+                currentProduct.id,
+                currentProduct.name,
+                currentProduct.price,
+                currentProduct.image
+            );
+            
+            // Open main page with cart
+            window.opener ? window.opener.location.href = '4.html#cart' : window.location.href = '4.html';
+        });
+
+        // --- View Product ---
+        function viewProduct(productId) {
+            window.open(`product-view.html?id=${productId}`, '_blank');
+        }
+
+        // --- Social Share ---
+        function shareProduct(platform) {
+            if (!currentProduct) return;
+            
+            const productName = encodeURIComponent(currentProduct.name);
+            const productUrl = encodeURIComponent(window.location.href);
+            const productImage = encodeURIComponent(currentProduct.image);
+            
+            let shareUrl = '';
+            
+            switch(platform) {
+                case 'facebook':
+                    shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${productUrl}`;
+                    break;
+                case 'twitter':
+                    shareUrl = `https://twitter.com/intent/tweet?text=${productName}&url=${productUrl}`;
+                    break;
+                case 'whatsapp':
+                    shareUrl = `https://wa.me/?text=${productName}%20${productUrl}`;
+                    break;
+            }
+            
+            if (shareUrl) {
+                window.open(shareUrl, '_blank', 'width=600,height=400');
+            }
+        }
+
+        // --- Initialize ---
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProductDetails();
+            
+            // Initialize quantity controls
+            document.getElementById('product-qty').textContent = quantity;
+        });
+
+        // Handle back button
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                window.close();
+            }
+        });
+    </script>
+</body>
+</html>

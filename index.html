@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopnora User App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- EmailJS Library -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #10B981; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .discount-badge { position: absolute; top: 8px; right: 8px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; z-index: 10; }
+    </style>
+</head>
+<body class="pb-20">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow fixed w-full top-0 z-50 p-3 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <img src="https://i.postimg.cc/VNzGbSxM/20260102-184321.png" class="h-10">
+            <span class="font-bold text-green-600 text-lg hidden md:block">Shopnora</span>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="flex-1 mx-4">
+            <div class="relative">
+                <input type="text" id="search-input" oninput="filterProducts()" placeholder="পণ্য খুঁজুন..." class="w-full border rounded-full px-4 py-2 text-sm bg-gray-100 focus:outline-none focus:ring-1 focus:ring-green-500">
+                <i class="fa-solid fa-magnifying-glass absolute right-3 top-2.5 text-gray-400"></i>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Auth Buttons -->
+            <div id="auth-section">
+                <button onclick="document.getElementById('auth-modal').classList.remove('hidden')" class="text-sm font-bold text-green-600">লগইন</button>
+            </div>
+            
+            <div class="relative cursor-pointer" onclick="toggleCart()">
+                <i class="fa-solid fa-cart-shopping text-2xl text-gray-600"></i>
+                <span id="cart-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">0</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="container mx-auto mt-20 px-4">
+        
+        <!-- Offer Slider -->
+        <div id="offer-container" class="w-full h-40 md:h-60 bg-gray-200 rounded-lg overflow-hidden mb-6 relative shadow">
+            <img id="slider-img" class="w-full h-full object-cover hidden">
+            <div id="offer-loader" class="absolute inset-0 flex items-center justify-center text-gray-500">অফার লোড হচ্ছে...</div>
+        </div>
+
+        <!-- Filters & Categories -->
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-700">পণ্য তালিকা</h2>
+            <select id="sort-price" onchange="filterProducts()" class="border rounded px-2 py-1 text-sm">
+                <option value="default">ডিফল্ট</option>
+                <option value="low">দাম (কম থেকে বেশি)</option>
+                <option value="high">দাম (বেশি থেকে কম)</option>
+            </select>
+        </div>
+
+        <div id="categories-container" class="flex gap-3 overflow-x-auto hide-scrollbar mb-6 pb-2">
+            <button onclick="selectCategory('all')" class="cat-btn bg-green-600 text-white px-4 py-2 rounded-full whitespace-nowrap shadow text-sm">সব পণ্য</button>
+            <!-- Dynamic Categories will appear here -->
+        </div>
+
+        <!-- Product Grid -->
+        <div id="product-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div class="col-span-full flex flex-col items-center py-10">
+                <div class="spinner mb-2"></div>
+                <p class="text-gray-500">পণ্য লোড করা হচ্ছে...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals -->
+
+    <!-- 1. Auth Modal (Updated with Google Login) -->
+    <div id="auth-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm p-6 rounded-lg shadow-xl relative">
+            <button onclick="document.getElementById('auth-modal').classList.add('hidden')" class="absolute top-2 right-3 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-4 text-green-700 text-center">স্বাগতম</h2>
+            
+            <div id="login-form">
+                <input type="email" id="l-email" placeholder="ইমেইল" class="w-full border p-2 rounded mb-3">
+                <input type="password" id="l-pass" placeholder="পাসওয়ার্ড" class="w-full border p-2 rounded mb-3">
+                <button onclick="handleLogin()" class="w-full bg-green-600 text-white py-2 rounded font-bold mb-3">লগইন করুন</button>
+                
+                <!-- Google Login Button -->
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-sm">অথবা</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+                <button onclick="handleGoogleLogin()" class="w-full bg-white border border-gray-300 text-gray-700 py-2 rounded font-bold mb-2 flex items-center justify-center gap-2 hover:bg-gray-50">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
+                    Google দিয়ে লগইন করুন
+                </button>
+
+                <p class="text-center text-sm mt-2">অ্যাকাউন্ট নেই? <span onclick="toggleAuthMode()" class="text-blue-600 cursor-pointer">রেজিস্ট্রেশন করুন</span></p>
+            </div>
+
+            <div id="reg-form" class="hidden">
+                <input type="text" id="r-name" placeholder="আপনার নাম" class="w-full border p-2 rounded mb-3">
+                <input type="email" id="r-email" placeholder="ইমেইল" class="w-full border p-2 rounded mb-3">
+                <input type="tel" id="r-phone" placeholder="মোবাইল" class="w-full border p-2 rounded mb-3">
+                <input type="password" id="r-pass" placeholder="পাসওয়ার্ড" class="w-full border p-2 rounded mb-3">
+                <button id="reg-btn" onclick="handleRegister()" class="w-full bg-green-600 text-white py-2 rounded font-bold mb-2">রেজিস্ট্রেশন করুন</button>
+                <p class="text-center text-sm">অ্যাকাউন্ট আছে? <span onclick="toggleAuthMode()" class="text-blue-600 cursor-pointer">লগইন করুন</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Product Detail Modal -->
+    <div id="product-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-lg overflow-hidden shadow-xl relative">
+            <button onclick="document.getElementById('product-modal').classList.add('hidden')" class="absolute top-2 right-3 text-3xl z-10 text-gray-600">&times;</button>
+            <div id="modal-content">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Cart Modal -->
+    <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-end">
+        <div class="bg-white w-full max-w-sm h-full flex flex-col">
+            <div class="p-4 bg-green-600 text-white flex justify-between items-center">
+                <h2 class="font-bold">আপনার কার্ট</h2>
+                <button onclick="toggleCart()" class="text-2xl">&times;</button>
+            </div>
+            <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+            <div class="p-4 border-t bg-gray-50">
+                <div class="flex justify-between text-sm mb-1">
+                    <span>সাব-টোটাল:</span> <span id="cart-subtotal">৳0</span>
+                </div>
+                <div class="flex justify-between font-bold text-lg mb-3">
+                    <span>মোট:</span> <span id="cart-total">৳0</span>
+                </div>
+                <button onclick="openCheckout()" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700">অর্ডার করুন</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Checkout Modal -->
+    <div id="checkout-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md p-6 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4 text-green-700">চেকআউট</h2>
+            <form id="order-form" class="space-y-3">
+                <!-- User Info -->
+                <input type="text" id="c-name" placeholder="নাম" class="w-full border p-2 rounded" required>
+                <input type="tel" id="c-phone" placeholder="মোবাইল নাম্বার" class="w-full border p-2 rounded" required>
+                <!-- Added Email Field for Order Confirmation -->
+                <input type="email" id="c-email" placeholder="ইমেইল (রশিদের জন্য)" class="w-full border p-2 rounded" required>
+                
+                <!-- Delivery Zone Selection -->
+                <div class="mb-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ডেলিভারি এলাকা</label>
+                    <select id="c-zone" class="w-full border p-2 rounded bg-white" required onchange="calculateTotal()">
+                        <option value="">এলাকা নির্বাচন করুন</option>
+                    </select>
+                </div>
+
+                <textarea id="c-address" placeholder="বিস্তারিত ঠিকানা (বাড়ি/রোড নং)" class="w-full border p-2 rounded" required></textarea>
+                
+                <!-- Payment Method -->
+                <div class="mt-4">
+                    <p class="font-bold mb-2">পেমেন্ট মেথড:</p>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 border p-2 rounded cursor-pointer">
+                            <input type="radio" name="payment" value="COD" checked onclick="togglePaymentFields()">
+                            <i class="fa-solid fa-money-bill-wave text-green-600"></i> ক্যাশ অন ডেলিভারি
+                        </label>
+                        <label class="flex items-center gap-2 border p-2 rounded cursor-pointer">
+                            <input type="radio" name="payment" value="Bkash" onclick="togglePaymentFields()">
+                            <img src="https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" class="h-6"> বিকাশ (সেন্ড মানি)
+                        </label>
+                        <label class="flex items-center gap-2 border p-2 rounded cursor-pointer">
+                            <input type="radio" name="payment" value="Nagad" onclick="togglePaymentFields()">
+                            <img src="https://freelogopng.com/images/all_img/1679248787nagad-logo.png" class="h-6"> নগদ (সেন্ড মানি)
+                        </label>
+                    </div>
+                    
+                    <div id="manual-payment-info" class="hidden mt-3 p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                        <p class="font-bold text-blue-800" id="pay-number">সেন্ড মানি করুন: Loading...</p>
+                        <input type="text" id="trx-id" placeholder="Transaction ID (TrxID) লিখুন" class="w-full border p-2 rounded mt-2">
+                    </div>
+                </div>
+
+                <!-- Totals -->
+                <div class="flex justify-between text-sm text-gray-600 mt-2">
+                    <span>ডেলিভারি চার্জ:</span>
+                    <span id="c-delivery">৳0</span>
+                </div>
+                <div class="flex justify-between font-bold text-lg text-green-700 border-t pt-2">
+                    <span>সর্বমোট:</span>
+                    <span id="c-grand-total">৳0</span>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-4">
+                    <button type="button" onclick="document.getElementById('checkout-modal').classList.add('hidden')" class="text-gray-500">বাতিল</button>
+                    <button type="submit" id="btn-confirm-order" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">অর্ডার নিশ্চিত করুন</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. Profile & Orders Modal -->
+    <div id="orders-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[55] flex justify-end">
+        <div class="bg-white w-full max-w-md h-full flex flex-col shadow-2xl">
+            <div class="p-4 bg-green-700 text-white flex justify-between items-center shadow">
+                <h2 class="font-bold text-lg"><i class="fa-solid fa-user-circle mr-2"></i>আমার প্রোফাইল</h2>
+                <button onclick="document.getElementById('orders-modal').classList.add('hidden')" class="text-2xl">&times;</button>
+            </div>
+            
+            <div class="p-6 bg-green-50">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 id="profile-name" class="font-bold text-xl text-gray-800">লোড হচ্ছে...</h3>
+                        <p id="profile-email" class="text-gray-600 text-sm mb-1"></p>
+                        <p id="profile-phone" class="text-gray-600 text-sm"></p>
+                    </div>
+                    <button onclick="enableProfileEdit()" class="text-green-700 text-sm underline"><i class="fa-solid fa-edit"></i> এডিট</button>
+                </div>
+                
+                <!-- Edit Profile Form (Hidden) -->
+                <div id="profile-edit-form" class="hidden mt-4 bg-white p-3 rounded shadow-sm">
+                    <input type="text" id="edit-name" class="border p-2 w-full rounded mb-2 text-sm" placeholder="নাম">
+                    <input type="text" id="edit-phone" class="border p-2 w-full rounded mb-2 text-sm" placeholder="ফোন (বাধ্যতামূলক)">
+                    <input type="text" id="edit-address" class="border p-2 w-full rounded mb-2 text-sm" placeholder="ঠিকানা">
+                    <button onclick="updateProfile()" class="bg-green-600 text-white px-3 py-1 rounded text-sm">সেভ করুন</button>
+                    <button onclick="document.getElementById('profile-edit-form').classList.add('hidden')" class="text-red-500 text-sm ml-2">বাতিল</button>
+                </div>
+
+                <button onclick="logout()" class="mt-4 text-red-600 border border-red-200 bg-white px-3 py-1 rounded text-sm hover:bg-red-50">লগআউট</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 bg-gray-100">
+                <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">অর্ডার হিস্ট্রি</h3>
+                <div id="order-history-list" class="space-y-3">
+                    <div class="text-center py-8">
+                        <div class="spinner mb-2"></div>
+                        <p class="text-gray-500 text-sm">অর্ডার লোড হচ্ছে...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Order Tracking Modal -->
+    <div id="tracking-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[70] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg p-6 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4 text-green-700 text-center">অর্ডার ট্র্যাকিং</h2>
+            <div class="mb-6">
+                <div class="relative">
+                    <input type="text" id="track-order-id" placeholder="আপনার অর্ডার আইডি লিখুন (যেমন: ORD-123456)" class="w-full border border-green-500 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300">
+                    <button onclick="trackOrder()" class="absolute right-2 top-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">ট্র্যাক</button>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">অর্ডার আইডি আপনার অর্ডার কনফার্মেশন ইমেইল বা এসএমএসে পাবেন</p>
+            </div>
+            
+            <div id="tracking-result" class="hidden">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h3 class="font-bold text-lg" id="track-order-number"></h3>
+                            <p class="text-gray-600 text-sm" id="track-order-date"></p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-sm font-bold" id="track-order-status"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-sm text-gray-500">গ্রাহক</p>
+                            <p class="font-bold" id="track-customer-name"></p>
+                            <p class="text-sm" id="track-customer-phone"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">ঠিকানা</p>
+                            <p class="text-sm" id="track-customer-address"></p>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t pt-3">
+                        <div class="flex justify-between mb-1">
+                            <span>পণ্যের মূল্য:</span>
+                            <span id="track-subtotal"></span>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                            <span>ডেলিভারি চার্জ:</span>
+                            <span id="track-delivery"></span>
+                        </div>
+                        <div class="flex justify-between font-bold text-lg border-t pt-2">
+                            <span>মোট:</span>
+                            <span id="track-total"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Order Timeline -->
+                <h4 class="font-bold mb-3">অর্ডার স্ট্যাটাস টাইমলাইন</h4>
+                <div class="space-y-4" id="tracking-timeline">
+                    <!-- Timeline will be inserted here -->
+                </div>
+                
+                <!-- Order Items -->
+                <h4 class="font-bold mb-3 mt-6">অর্ডারকৃত পণ্যসমূহ</h4>
+                <div id="track-order-items" class="space-y-2">
+                    <!-- Order items will be inserted here -->
+                </div>
+            </div>
+            
+            <div class="text-center mt-6">
+                <button onclick="document.getElementById('tracking-modal').classList.add('hidden')" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">বন্ধ করুন</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- উন্নত ফুটার সেকশন -->
+    <footer class="bg-gray-900 text-white pt-12 pb-8 mt-20">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Company Info -->
+                <div>
+                    <div class="flex items-center gap-3 mb-6">
+                        <img src="https://i.postimg.cc/VNzGbSxM/20260102-184321.png" class="h-12">
+                        <span class="font-bold text-2xl text-green-400">Shopnora</span>
+                    </div>
+                    <p class="text-gray-400 mb-4">দিনাজপুরের সেরা অনলাইন শপিং প্ল্যাটফর্ম। গুণগতমানের পণ্য, দ্রুত ডেলিভারি এবং নির্ভরযোগ্য সার্ভিস।</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-xl font-bold mb-6 text-white">দ্রুত লিংক</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">হোম</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">পণ্য ব্রাউজ করুন</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">আমাদের সম্পর্কে</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">যোগাযোগ করুন</a></li>
+                        <li><button onclick="document.getElementById('tracking-modal').classList.remove('hidden')" class="text-gray-400 hover:text-green-400 transition text-left">অর্ডার ট্র্যাক করুন</button></li>
+                    </ul>
+                </div>
+
+                <!-- Customer Service -->
+                <div>
+                    <h3 class="text-xl font-bold mb-6 text-white">গ্রাহক সেবা</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">সাহায্য কেন্দ্র</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">প্রাইভেসি পলিসি</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">শর্তাবলী</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">রিটার্ন পলিসি</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-green-400 transition">এফ.এ.কিউ</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact & Newsletter -->
+                <div>
+                    <h3 class="text-xl font-bold mb-6 text-white">যোগাযোগ</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-map-marker-alt text-green-400 mt-1"></i>
+                            <p class="text-gray-400">কাশীডাঙ্গা বাজার, বিরল, দিনাজপুর</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-phone text-green-400"></i>
+                            <p class="text-gray-400">01737-470024</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-envelope text-green-400"></i>
+                            <p class="text-gray-400">support@shopnora.com</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Newsletter -->
+                    <div class="mt-6">
+                        <h4 class="font-bold mb-3">নিউজলেটার সাবস্ক্রাইব</h4>
+                        <div class="flex">
+                            <input type="email" placeholder="আপনার ইমেইল" class="flex-1 px-4 py-2 rounded-l-lg text-gray-900">
+                            <button class="bg-green-600 px-4 py-2 rounded-r-lg hover:bg-green-700">সাবস্ক্রাইব</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="border-t border-gray-800 mt-12 pt-8">
+                <h4 class="text-center font-bold mb-4">সাপোর্টেড পেমেন্ট মেথড</h4>
+                <div class="flex justify-center space-x-6 mb-6">
+                    <img src="https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" class="h-10">
+                    <img src="https://freelogopng.com/images/all_img/1679248787nagad-logo.png" class="h-10">
+                    <i class="fas fa-credit-card text-4xl text-gray-400"></i>
+                    <i class="fas fa-money-bill-wave text-4xl text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Copyright -->
+            <div class="text-center pt-6 border-t border-gray-800">
+                <p class="text-gray-500 text-sm">&copy; 2026 Shopnora. সকল অধিকার সংরক্ষিত।</p>
+                <p class="text-gray-600 text-xs mt-2">ডেভেলপড বাই <span class="text-green-400">Shopnora টেক টিম</span></p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- 1. FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8vG1hw9CM3xx5hSK4uphBhDhFg3vOuUU",
+            authDomain: "shopnora2.firebaseapp.com",
+            projectId: "shopnora2",
+            storageBucket: "shopnora2.firebasestorage.app",
+            messagingSenderId: "51821256004",
+            appId: "1:51821256004:web:45f58b800c3852ba6e4b11",
+            measurementId: "G-361G2NMH7Z"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // EmailJS
+        (function(){ emailjs.init("a3zv_kwWYaRXOxpqO"); })();
+
+        // --- 2. GLOBAL VARIABLES ---
+        let allProducts = [];
+        let cart = JSON.parse(localStorage.getItem('shopnora_cart')) || [];
+        let currentUser = null;
+        let settings = { merchantNumber: "01737-470024", deliveryZones: [] };
+        let activeCategory = 'all';
+
+        // --- 3. INIT ---
+        auth.onAuthStateChanged(user => {
+            currentUser = user;
+            const authSection = document.getElementById('auth-section');
+            if (user) {
+                authSection.innerHTML = `<button onclick="openProfile()" class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold"><i class="fa-solid fa-user"></i> প্রোফাইল</button>`;
+            } else {
+                authSection.innerHTML = `<button onclick="document.getElementById('auth-modal').classList.remove('hidden')" class="text-sm font-bold text-green-600">লগইন</button>`;
+            }
+        });
+
+        // Load Settings
+        db.collection("settings").doc("config").get().then(doc => {
+            if(doc.exists) {
+                settings = { ...settings, ...doc.data() };
+            }
+        });
+
+        // Load Categories
+        db.collection("categories").where("active", "==", true).get().then(snapshot => {
+            const container = document.getElementById('categories-container');
+            snapshot.forEach(doc => {
+                const cat = doc.data();
+                container.innerHTML += `<button onclick="selectCategory('${cat.name}')" class="cat-btn bg-white border px-4 py-2 rounded-full whitespace-nowrap text-gray-700 text-sm hover:bg-green-50">${cat.name}</button>`;
+            });
+        });
+
+        // Load Products
+        db.collection("products").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+            allProducts = [];
+            snapshot.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
+            filterProducts();
+        });
+
+        // Load Offers
+        db.collection("offers").orderBy("date", "desc").onSnapshot(snapshot => {
+            const offers = [];
+            snapshot.forEach(doc => offers.push(doc.data()));
+            if(offers.length > 0) {
+                let idx = 0;
+                const imgEl = document.getElementById('slider-img');
+                const loader = document.getElementById('offer-loader');
+                const showSlide = () => {
+                    imgEl.src = offers[idx].image;
+                    imgEl.classList.remove('hidden');
+                    loader.classList.add('hidden');
+                    idx = (idx + 1) % offers.length;
+                };
+                showSlide();
+                setInterval(showSlide, 3000);
+            } else { document.getElementById('offer-loader').innerText = "Shopnora-তে স্বাগতম"; }
+        });
+
+        // --- 4. CORE FUNCTIONS ---
+
+        function selectCategory(cat) {
+            activeCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if(btn.innerText.includes(cat) || (cat === 'all' && btn.innerText.includes('সব'))) {
+                    btn.classList.add('bg-green-600', 'text-white'); btn.classList.remove('bg-white', 'text-gray-700');
+                } else {
+                    btn.classList.remove('bg-green-600', 'text-white'); btn.classList.add('bg-white', 'text-gray-700');
+                }
+            });
+            filterProducts();
+        }
+
+        function filterProducts() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const sort = document.getElementById('sort-price').value;
+            const grid = document.getElementById('product-grid');
+            
+            let filtered = allProducts.filter(p => {
+                return (activeCategory === 'all' || p.category === activeCategory) && p.name.toLowerCase().includes(search);
+            });
+
+            if(sort === 'low') filtered.sort((a,b) => a.price - b.price);
+            if(sort === 'high') filtered.sort((a,b) => b.price - a.price);
+
+            grid.innerHTML = '';
+            if(filtered.length === 0) { grid.innerHTML = '<p class="text-center col-span-full text-gray-500 py-10">কোনো পণ্য পাওয়া যায়নি</p>'; return; }
+
+            filtered.forEach(p => {
+                const stockStatus = p.stock && p.stock > 0 ? '' : '<span class="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">স্টক আউট</span>';
+                const opacity = p.stock && p.stock > 0 ? '' : 'opacity-60 grayscale';
+                const buyPrice = p.buyingPrice || 0;
+                
+                // Calculate discount percentage
+                let discountBadge = '';
+                if (p.regularPrice && p.regularPrice > p.price) {
+                    const discount = Math.round(((p.regularPrice - p.price) / p.regularPrice) * 100);
+                    if (discount > 0) {
+                        discountBadge = `<div class="discount-badge">${discount}% OFF</div>`;
+                    }
+                }
+                
+                const btnState = p.stock > 0 ? `onclick="addToCart('${p.id}', '${p.name}', ${p.price}, ${buyPrice}, '${p.image}')"` : 'disabled';
+                
+                grid.innerHTML += `
+                    <div class="bg-white rounded shadow p-2 flex flex-col h-full hover:shadow-lg transition relative ${opacity}">
+                        ${stockStatus}
+                        ${discountBadge}
+                        <div class="h-32 bg-gray-100 rounded mb-2 overflow-hidden flex items-center justify-center cursor-pointer" onclick="openProductPage('${p.id}')">
+                            <img src="${p.image}" class="h-full w-full object-contain">
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-800 line-clamp-2 cursor-pointer" onclick="openProductPage('${p.id}')">${p.name}</h3>
+                        <div class="mt-auto flex justify-between items-center pt-2">
+                            <div onclick="openProductPage('${p.id}')" class="cursor-pointer">
+                                <span class="text-green-600 font-bold">৳${p.price}</span>
+                                ${p.regularPrice && p.regularPrice > p.price ? `<span class="text-xs text-gray-400 line-through">৳${p.regularPrice}</span>` : ''}
+                            </div>
+                            <button ${btnState} onclick="event.stopPropagation(); addToCart('${p.id}', '${p.name}', ${p.price}, ${buyPrice}, '${p.image}')" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 shadow z-10">Add to cart</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function openProductPage(productId) {
+            window.open(`product-view.html?id=${productId}`, '_blank');
+        }
+
+        function addToCart(id, name, price, buyingPrice, image) {
+            const item = cart.find(i => i.id === id);
+            if(item) item.qty++;
+            else cart.push({ id, name, price, buyingPrice, image, qty: 1 });
+            updateCartUI();
+            const badge = document.getElementById('cart-count'); badge.classList.add('scale-125'); setTimeout(() => badge.classList.remove('scale-125'), 200);
+        }
+
+        function updateCartUI() {
+            localStorage.setItem('shopnora_cart', JSON.stringify(cart));
+            document.getElementById('cart-count').innerText = cart.reduce((sum, i) => sum + i.qty, 0);
+            const container = document.getElementById('cart-items'); container.innerHTML = '';
+            let total = 0;
+            if(cart.length === 0) container.innerHTML = '<p class="text-center text-gray-400 mt-10">কার্ট খালি</p>';
+            cart.forEach((item, index) => {
+                total += item.price * item.qty;
+                container.innerHTML += `
+                    <div class="flex items-center gap-3 border-b pb-2 last:border-0">
+                        <img src="${item.image}" class="w-12 h-12 rounded object-cover">
+                        <div class="flex-1">
+                            <p class="font-bold text-sm line-clamp-1">${item.name}</p>
+                            <p class="text-green-600 text-sm font-bold">৳${item.price * item.qty}</p>
+                        </div>
+                        <div class="flex items-center gap-2 bg-gray-100 rounded px-1">
+                            <button onclick="changeQty(${index}, -1)" class="px-2 font-bold">-</button>
+                            <span class="text-sm font-bold">${item.qty}</span>
+                            <button onclick="changeQty(${index}, 1)" class="px-2 font-bold">+</button>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('cart-subtotal').innerText = '৳' + total;
+            document.getElementById('cart-total').innerText = '৳' + total;
+        }
+
+        function changeQty(index, delta) {
+            cart[index].qty += delta;
+            if(cart[index].qty <= 0) cart.splice(index, 1);
+            updateCartUI();
+        }
+
+        function toggleCart() {
+            document.getElementById('cart-modal').classList.toggle('hidden');
+            if(!document.getElementById('cart-modal').classList.contains('hidden')) updateCartUI();
+        }
+
+        // --- 5. CHECKOUT & ORDER ---
+        function openCheckout() {
+            // -- RESTRICTION START --
+            // অর্ডার করতে হলে ইউজারকে অবশ্যই লগইন থাকতে হবে
+            if (!currentUser) {
+                alert("অর্ডার করার জন্য আপনাকে অবশ্যই লগইন বা রেজিস্ট্রেশন করতে হবে।");
+                document.getElementById('cart-modal').classList.add('hidden'); // কার্ট বন্ধ করুন
+                document.getElementById('auth-modal').classList.remove('hidden'); // লগইন মোডাল খুলুন
+                return;
+            }
+            // -- RESTRICTION END --
+
+            if(cart.length === 0) return alert("কার্ট খালি!");
+            toggleCart();
+            document.getElementById('checkout-modal').classList.remove('hidden');
+
+            // Load Delivery Zones
+            const zoneSelect = document.getElementById('c-zone');
+            zoneSelect.innerHTML = '<option value="">এলাকা নির্বাচন করুন</option>';
+            if(settings.deliveryZones) {
+                settings.deliveryZones.forEach((z, i) => {
+                    zoneSelect.innerHTML += `<option value="${i}">${z.name} (চার্জ: ৳${z.charge})</option>`;
+                });
+            }
+
+            if(currentUser) {
+                db.collection("users").doc(currentUser.uid).get().then(doc => {
+                    if(doc.exists) {
+                        const d = doc.data();
+                        document.getElementById('c-name').value = d.name || '';
+                        document.getElementById('c-phone').value = d.phone || '';
+                        document.getElementById('c-email').value = d.email || currentUser.email || ''; 
+                        document.getElementById('c-address').value = d.address || '';
+                    } else {
+                        // যদি ইউজারের ডাটাবেস এন্ট্রি না থাকে (রেয়ার কেস), অন্তত ইমেইলটা বসাই
+                        document.getElementById('c-email').value = currentUser.email || '';
+                    }
+                });
+            }
+            calculateTotal();
+        }
+
+        function calculateTotal() {
+            const subtotal = cart.reduce((a, b) => a + (b.price * b.qty), 0);
+            const zoneIdx = document.getElementById('c-zone').value;
+            let delCharge = 0;
+            
+            if(zoneIdx !== "") {
+                delCharge = settings.deliveryZones[zoneIdx].charge;
+            }
+
+            document.getElementById('c-delivery').innerText = '৳' + delCharge;
+            document.getElementById('c-grand-total').innerText = '৳' + (subtotal + delCharge);
+        }
+
+        function togglePaymentFields() {
+            const method = document.querySelector('input[name="payment"]:checked').value;
+            const manualDiv = document.getElementById('manual-payment-info');
+            if(method === 'COD') manualDiv.classList.add('hidden');
+            else {
+                manualDiv.classList.remove('hidden');
+                document.getElementById('pay-number').innerText = `${method} সেন্ড মানি করুন: ${settings.merchantNumber}`;
+            }
+        }
+
+        document.getElementById('order-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-confirm-order');
+            btn.disabled = true;
+            btn.innerText = "অপেক্ষা করুন...";
+
+            const name = document.getElementById('c-name').value;
+            const phone = document.getElementById('c-phone').value;
+            const email = document.getElementById('c-email').value; // Capture Email
+            const address = document.getElementById('c-address').value;
+            const zoneIdx = document.getElementById('c-zone').value;
+            const method = document.querySelector('input[name="payment"]:checked').value;
+            const trxId = document.getElementById('trx-id').value;
+
+            if(zoneIdx === "") { btn.disabled = false; btn.innerText = "অর্ডার নিশ্চিত করুন"; return alert("ডেলিভারি এলাকা নির্বাচন করুন"); }
+            if(method !== 'COD' && !trxId) { btn.disabled = false; btn.innerText = "অর্ডার নিশ্চিত করুন"; return alert("TrxID দিন"); }
+
+            const deliveryCharge = settings.deliveryZones[zoneIdx].charge;
+            const subtotal = cart.reduce((a, b) => a + (b.price * b.qty), 0);
+            const total = subtotal + deliveryCharge;
+            const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+
+            try {
+                // 1. Save Order to Firestore
+                await db.collection('orders').add({
+                    orderId,
+                    userId: currentUser ? currentUser.uid : null,
+                    customer: { name, phone, email, address }, // Saved email in order
+                    items: cart,
+                    subtotal,
+                    deliveryCharge,
+                    total,
+                    payment: { method, trxId: trxId || '' },
+                    status: 'Pending',
+                    date: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 2. Prepare Email Items List (HTML Format for Template)
+                const itemsHtml = cart.map(item => 
+                    `<tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.qty}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">৳${item.price * item.qty}</td>
+                    </tr>`
+                ).join('');
+
+                // 3. Send Professional Email via EmailJS
+                if(email) {
+                    const emailParams = {
+                        to_name: name,
+                        to_email: email,
+                        order_id: orderId,
+                        order_date: new Date().toLocaleDateString('bn-BD'),
+                        order_items_html: itemsHtml, // Passing HTML Table Rows
+                        subtotal: subtotal,
+                        delivery_charge: deliveryCharge,
+                        total_amount: total,
+                        delivery_address: address,
+                        customer_phone: phone,
+                        payment_method: method
+                    };
+
+                    // Using the Template ID you provided: template_i20ls5b
+                    emailjs.send("service_g3p9jxw", "template_i20ls5b", emailParams)
+                        .then(() => console.log("Email sent!"))
+                        .catch(err => console.error("Email failed:", err));
+                }
+
+                alert(`অর্ডার সফল! ID: ${orderId}\nআপনার ইমেইল চেক করুন।`);
+                cart = []; updateCartUI();
+                document.getElementById('checkout-modal').classList.add('hidden');
+                document.getElementById('order-form').reset();
+            } catch (error) { 
+                console.error(error);
+                alert("অর্ডার ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"); 
+            }
+            
+            btn.disabled = false;
+            btn.innerText = "অর্ডার নিশ্চিত করুন";
+        });
+
+        // --- 6. ORDER TRACKING FUNCTION ---
+        async function trackOrder() {
+            const orderId = document.getElementById('track-order-id').value.trim();
+            if(!orderId) {
+                alert("অর্ডার আইডি লিখুন");
+                return;
+            }
+
+            try {
+                const snapshot = await db.collection('orders').where('orderId', '==', orderId).get();
+                
+                if(snapshot.empty) {
+                    alert("এই আইডি দিয়ে কোনো অর্ডার পাওয়া যায়নি");
+                    return;
+                }
+
+                const doc = snapshot.docs[0];
+                const order = doc.data();
+                const orderDate = order.date ? order.date.toDate() : new Date();
+                
+                // Display order information
+                document.getElementById('track-order-number').innerText = `অর্ডার #${order.orderId}`;
+                document.getElementById('track-order-date').innerText = `তারিখ: ${orderDate.toLocaleDateString('bn-BD')}`;
+                document.getElementById('track-order-status').innerText = order.status;
+                
+                // Set status color
+                const statusEl = document.getElementById('track-order-status');
+                statusEl.className = 'px-3 py-1 rounded-full text-sm font-bold';
+                if(order.status === 'Pending') {
+                    statusEl.classList.add('bg-yellow-100', 'text-yellow-800');
+                } else if(order.status === 'Confirmed') {
+                    statusEl.classList.add('bg-blue-100', 'text-blue-800');
+                } else if(order.status === 'Delivered') {
+                    statusEl.classList.add('bg-green-100', 'text-green-800');
+                } else if(order.status === 'Cancelled') {
+                    statusEl.classList.add('bg-red-100', 'text-red-800');
+                } else {
+                    statusEl.classList.add('bg-gray-100', 'text-gray-800');
+                }
+                
+                document.getElementById('track-customer-name').innerText = order.customer.name;
+                document.getElementById('track-customer-phone').innerText = order.customer.phone;
+                document.getElementById('track-customer-address').innerText = order.customer.address;
+                document.getElementById('track-subtotal').innerText = `৳${order.subtotal}`;
+                document.getElementById('track-delivery').innerText = `৳${order.deliveryCharge}`;
+                document.getElementById('track-total').innerText = `৳${order.total}`;
+                
+                // Display timeline
+                const timeline = document.getElementById('tracking-timeline');
+                timeline.innerHTML = '';
+                
+                const timelineData = [
+                    { status: 'Pending', label: 'অর্ডার রিসিভড', time: orderDate, icon: 'fa-clock' },
+                    { status: 'Confirmed', label: 'অর্ডার কনফার্মড', time: new Date(orderDate.getTime() + 3600000), icon: 'fa-check-circle' },
+                    { status: 'Processing', label: 'প্রসেসিং', time: new Date(orderDate.getTime() + 7200000), icon: 'fa-cog' },
+                    { status: 'Delivered', label: 'ডেলিভার্ড', time: order.status === 'Delivered' ? new Date(orderDate.getTime() + 86400000) : null, icon: 'fa-truck' }
+                ];
+                
+                timelineData.forEach((item, index) => {
+                    const isActive = index <= timelineData.findIndex(t => t.status === order.status);
+                    timeline.innerHTML += `
+                        <div class="flex items-center">
+                            <div class="flex flex-col items-center mr-4">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-400'}">
+                                    <i class="fas ${item.icon}"></i>
+                                </div>
+                                ${index < timelineData.length - 1 ? `<div class="h-8 w-1 ${isActive ? 'bg-green-300' : 'bg-gray-300'}"></div>` : ''}
+                            </div>
+                            <div>
+                                <p class="font-bold ${isActive ? 'text-green-700' : 'text-gray-500'}">${item.label}</p>
+                                <p class="text-sm text-gray-500">${item.time ? item.time.toLocaleDateString('bn-BD') + ' ' + item.time.toLocaleTimeString('bn-BD', {hour: '2-digit', minute:'2-digit'}) : 'প্রক্রিয়াধীন'}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // Display order items
+                const itemsContainer = document.getElementById('track-order-items');
+                itemsContainer.innerHTML = '';
+                
+                if(order.items && order.items.length > 0) {
+                    order.items.forEach(item => {
+                        itemsContainer.innerHTML += `
+                            <div class="flex items-center bg-gray-50 p-3 rounded">
+                                <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden mr-3">
+                                    <img src="${item.image}" class="w-full h-full object-cover">
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-bold text-sm">${item.name}</p>
+                                    <p class="text-gray-600 text-sm">পরিমাণ: ${item.qty} x ৳${item.price}</p>
+                                </div>
+                                <div class="font-bold">৳${item.price * item.qty}</div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Show the tracking result
+                document.getElementById('tracking-result').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error("Error tracking order:", error);
+                alert("ট্র্যাকিং এরর: " + error.message);
+            }
+        }
+
+        // --- 7. AUTH & PROFILE ---
+        function toggleAuthMode() {
+            document.getElementById('login-form').classList.toggle('hidden');
+            document.getElementById('reg-form').classList.toggle('hidden');
+        }
+
+        // --- GOOGLE AUTHENTICATION & AUTO REGISTRATION ---
+        async function handleGoogleLogin() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+                
+                // চেক করুন ইউজার ডাটাবেসে আছে কিনা, না থাকলে সেভ করুন (অটো রেজিস্ট্রেশন)
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (!userDoc.exists) {
+                    await db.collection('users').doc(user.uid).set({
+                        name: user.displayName,
+                        email: user.email,
+                        phone: '', // Google ফোন দেয় না, তাই খালি
+                        address: '',
+                        role: 'user',
+                        joined: new Date()
+                    });
+                }
+                
+                document.getElementById('auth-modal').classList.add('hidden');
+                // প্রোফাইল পেজ রিফ্রেশ করার দরকার নেই, onAuthStateChanged হ্যান্ডেল করবে
+            } catch (error) {
+                console.error("Google Login Error:", error);
+                alert("গুগল লগইন ব্যর্থ হয়েছে: " + error.message);
+            }
+        }
+
+        async function handleLogin() {
+            try {
+                await auth.signInWithEmailAndPassword(document.getElementById('l-email').value, document.getElementById('l-pass').value);
+                document.getElementById('auth-modal').classList.add('hidden');
+            } catch (e) { alert("লগইন ব্যর্থ: " + e.message); }
+        }
+
+        async function handleRegister() {
+            const btn = document.getElementById('reg-btn');
+            const name = document.getElementById('r-name').value;
+            const email = document.getElementById('r-email').value;
+            const pass = document.getElementById('r-pass').value;
+            
+            btn.disabled=true; btn.innerText="...";
+            try {
+                const cred = await auth.createUserWithEmailAndPassword(email, pass);
+                await db.collection('users').doc(cred.user.uid).set({
+                    name, email, phone: document.getElementById('r-phone').value, role: 'user', joined: new Date()
+                });
+                // Registration Email (As existing)
+                emailjs.send("service_g3p9jxw", "template_ursaiqj", { to_name: name, to_email: email });
+                alert("রেজিস্ট্রেশন সফল!"); document.getElementById('auth-modal').classList.add('hidden');
+            } catch (e) { alert("ব্যর্থ: " + e.message); }
+            btn.disabled=false; btn.innerText="রেজিস্ট্রেশন করুন";
+        }
+
+        function logout() {
+            auth.signOut().then(() => { document.getElementById('orders-modal').classList.add('hidden'); cart=[]; updateCartUI(); });
+        }
+
+        // --- 8. PROFILE & ORDER HISTORY (Fixed for Visibility) ---
+        function openProfile() {
+            if(!currentUser) return;
+            document.getElementById('orders-modal').classList.remove('hidden');
+            
+            // Load Profile Data - ফিক্স করা হয়েছে যাতে ডাটা না থাকলেও ক্র্যাশ না করে
+            db.collection('users').doc(currentUser.uid).onSnapshot(doc => {
+                if(doc.exists) {
+                    const d = doc.data();
+                    // যদি নাম না থাকে, ইমেইলের প্রথম অংশ দেখাবে
+                    document.getElementById('profile-name').innerText = d.name || currentUser.displayName || 'ব্যবহারকারী';
+                    document.getElementById('profile-email').innerText = d.email || currentUser.email;
+                    document.getElementById('profile-phone').innerText = d.phone || 'ফোন নম্বর যোগ করুন';
+                    
+                    // Pre-fill edit form
+                    document.getElementById('edit-name').value = d.name || currentUser.displayName || '';
+                    document.getElementById('edit-phone').value = d.phone || '';
+                    document.getElementById('edit-address').value = d.address || '';
+                } else {
+                    // যদি কোনো কারণে ডকুমেন্ট না থাকে (যদিও রেজিস্ট্রেশনে হ্যান্ডেল করা হয়েছে)
+                    document.getElementById('profile-name').innerText = currentUser.displayName || 'ব্যবহারকারী';
+                    document.getElementById('profile-email').innerText = currentUser.email;
+                    document.getElementById('profile-phone').innerText = 'ফোন নম্বর যোগ করুন';
+                }
+            });
+
+            // Load Orders Realtime - FIXED: Now properly listening to changes
+            const list = document.getElementById('order-history-list');
+            list.innerHTML = '<div class="text-center py-8"><div class="spinner mb-2"></div><p class="text-gray-500 text-sm">অর্ডার লোড হচ্ছে...</p></div>';
+            
+            const unsubscribe = db.collection('orders')
+                .where('userId', '==', currentUser.uid)
+                .orderBy('date', 'desc')
+                .onSnapshot(snap => {
+                    list.innerHTML = '';
+                    if(snap.empty) { 
+                        list.innerHTML = '<p class="text-sm text-gray-500 text-center py-8">কোনো অর্ডার নেই</p>'; 
+                        return; 
+                    }
+                    
+                    snap.forEach(doc => {
+                        const o = doc.data();
+                        const date = o.date ? o.date.toDate().toLocaleDateString('bn-BD') : 'N/A';
+                        let color = 'bg-yellow-100 text-yellow-800';
+                        if(o.status === 'Confirmed') color = 'bg-blue-100 text-blue-800';
+                        if(o.status === 'Delivered') color = 'bg-green-100 text-green-800';
+                        if(o.status === 'Cancelled') color = 'bg-red-100 text-red-800';
+
+                        list.innerHTML += `
+                            <div class="bg-white p-3 rounded border shadow-sm">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-bold text-sm">#${o.orderId}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded ${color}">${o.status}</span>
+                                </div>
+                                <p class="text-xs text-gray-500">${date}</p>
+                                <div class="flex justify-between mt-2">
+                                    <span class="text-sm font-bold">৳${o.total}</span>
+                                    <span class="text-xs text-gray-400">${o.items.length} টি পণ্য</span>
+                                </div>
+                                <button onclick="viewOrderDetails('${o.orderId}')" class="text-green-600 text-xs mt-2 hover:underline">বিস্তারিত দেখুন</button>
+                            </div>`;
+                    });
+                }, error => {
+                    console.error("Error loading orders:", error);
+                    list.innerHTML = '<p class="text-sm text-red-500 text-center py-8">অর্ডার লোড করতে সমস্যা হয়েছে</p>';
+                });
+            
+            // Store unsubscribe function for cleanup
+            window.orderHistoryUnsubscribe = unsubscribe;
+        }
+
+        function viewOrderDetails(orderId) {
+            document.getElementById('track-order-id').value = orderId;
+            document.getElementById('orders-modal').classList.add('hidden');
+            document.getElementById('tracking-modal').classList.remove('hidden');
+            trackOrder();
+        }
+
+        function enableProfileEdit() {
+            document.getElementById('profile-edit-form').classList.remove('hidden');
+        }
+
+        function updateProfile() {
+            const name = document.getElementById('edit-name').value;
+            const phone = document.getElementById('edit-phone').value;
+            const address = document.getElementById('edit-address').value;
+            
+            if(!phone) return alert("ফোন নম্বর দেওয়া আবশ্যক");
+
+            // ব্যবহারকারীর তথ্য আপডেট করা হচ্ছে। যদি ডকুমেন্ট আগে না থাকে, set ব্যবহার করা নিরাপদ।
+            db.collection('users').doc(currentUser.uid).set({ 
+                name, 
+                phone, 
+                address,
+                email: currentUser.email, // ইমেইল মুছে না যায় তাই আবার সেট করছি
+                role: 'user' // রোল যেন মুছে না যায়
+            }, { merge: true }) // merge: true দিলে আগের ডাটা (যেমন joined date) থেকে যাবে
+            .then(() => {
+                alert("প্রোফাইল আপডেট হয়েছে");
+                document.getElementById('profile-edit-form').classList.add('hidden');
+            })
+            .catch(error => {
+                console.error("Error updating profile:", error);
+                alert("প্রোফাইল আপডেট ব্যর্থ হয়েছে।");
+            });
+        }
+
+        // Init
+        updateCartUI();
+    </script>
+</body>
+</html>
