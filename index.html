@@ -30,7 +30,7 @@
     <nav class="bg-white shadow fixed w-full top-0 z-50 p-3 flex justify-between items-center">
         <div class="flex items-center gap-2">
             <img src="https://i.postimg.cc/VNzGbSxM/20260102-184321.png" class="h-10">
-            <span class="font-bold text-green-600 text-lg hidden md:block">Shopnora</span>
+           
         </div>
         
         <!-- Search Bar -->
@@ -144,9 +144,22 @@
                 <button onclick="toggleCart()" class="text-2xl">&times;</button>
             </div>
             <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+            
+            <!-- Coupon Section -->
+            <div class="p-4 border-t bg-gray-50 border-b">
+                <div class="flex gap-2 mb-2">
+                    <input type="text" id="coupon-code" placeholder="কুপন কোড" class="flex-1 border p-2 rounded text-sm">
+                    <button onclick="applyCoupon()" class="bg-blue-600 text-white px-3 py-2 rounded text-sm">অ্যাপ্লাই</button>
+                </div>
+                <p id="coupon-message" class="text-xs text-gray-500"></p>
+            </div>
+            
             <div class="p-4 border-t bg-gray-50">
                 <div class="flex justify-between text-sm mb-1">
                     <span>সাব-টোটাল:</span> <span id="cart-subtotal">৳0</span>
+                </div>
+                <div class="flex justify-between text-sm mb-1" id="discount-row" style="display: none;">
+                    <span>কুপন ডিসকাউন্ট:</span> <span id="cart-discount">-৳0</span>
                 </div>
                 <div class="flex justify-between font-bold text-lg mb-3">
                     <span>মোট:</span> <span id="cart-total">৳0</span>
@@ -177,6 +190,19 @@
 
                 <textarea id="c-address" placeholder="বিস্তারিত ঠিকানা (বাড়ি/রোড নং)" class="w-full border p-2 rounded" required></textarea>
                 
+                <!-- Coupon Section -->
+                <div class="mb-2 p-3 bg-gray-50 rounded border">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-gray-700">কুপন কোড</label>
+                        <button type="button" onclick="showAvailableCoupons()" class="text-blue-600 text-xs">সকল কুপন দেখুন</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="checkout-coupon" placeholder="কুপন কোড লিখুন" class="flex-1 border p-2 rounded text-sm">
+                        <button type="button" onclick="applyCheckoutCoupon()" class="bg-blue-600 text-white px-3 py-2 rounded text-sm">অ্যাপ্লাই</button>
+                    </div>
+                    <p id="checkout-coupon-message" class="text-xs text-gray-500 mt-1"></p>
+                </div>
+
                 <!-- Payment Method -->
                 <div class="mt-4">
                     <p class="font-bold mb-2">পেমেন্ট মেথড:</p>
@@ -202,13 +228,23 @@
                 </div>
 
                 <!-- Totals -->
-                <div class="flex justify-between text-sm text-gray-600 mt-2">
-                    <span>ডেলিভারি চার্জ:</span>
-                    <span id="c-delivery">৳0</span>
-                </div>
-                <div class="flex justify-between font-bold text-lg text-green-700 border-t pt-2">
-                    <span>সর্বমোট:</span>
-                    <span id="c-grand-total">৳0</span>
+                <div class="border-t pt-3 mt-3">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>পণ্যের মূল্য:</span>
+                        <span id="c-subtotal">৳0</span>
+                    </div>
+                    <div class="flex justify-between text-sm mb-1" id="c-discount-row" style="display: none;">
+                        <span>কুপন ডিসকাউন্ট:</span>
+                        <span id="c-discount">-৳0</span>
+                    </div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>ডেলিভারি চার্জ:</span>
+                        <span id="c-delivery">৳0</span>
+                    </div>
+                    <div class="flex justify-between font-bold text-lg text-green-700 border-t pt-2">
+                        <span>সর্বমোট:</span>
+                        <span id="c-grand-total">৳0</span>
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 mt-4">
@@ -330,6 +366,19 @@
         </div>
     </div>
 
+    <!-- 7. Available Coupons Modal -->
+    <div id="coupons-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[65] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md p-6 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4 text-green-700 text-center">সকল একটিভ কুপন</h2>
+            <div id="coupons-list" class="space-y-3">
+                <!-- Coupons will be loaded here -->
+            </div>
+            <div class="text-center mt-6">
+                <button onclick="document.getElementById('coupons-modal').classList.add('hidden')" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">বন্ধ করুন</button>
+            </div>
+        </div>
+    </div>
+
     <!-- উন্নত ফুটার সেকশন -->
     <footer class="bg-gray-900 text-white pt-12 pb-8 mt-20">
         <div class="container mx-auto px-4">
@@ -425,7 +474,7 @@
         // --- 1. FIREBASE SETUP ---
         const firebaseConfig = {
             apiKey: "AIzaSyC8vG1hw9CM3xx5hSK4uphBhDhFg3vOuUU",
-            authDomain: "shopnora2.firebaseapp.com",
+            authDomain: "shopnora2.firebaseapp.com", // FIXED: Correct domain
             projectId: "shopnora2",
             storageBucket: "shopnora2.firebasestorage.app",
             messagingSenderId: "51821256004",
@@ -445,6 +494,8 @@
         let currentUser = null;
         let settings = { merchantNumber: "01737-470024", deliveryZones: [] };
         let activeCategory = 'all';
+        let appliedCoupon = null;
+        let discountAmount = 0;
 
         // --- 3. INIT ---
         auth.onAuthStateChanged(user => {
@@ -582,10 +633,10 @@
             localStorage.setItem('shopnora_cart', JSON.stringify(cart));
             document.getElementById('cart-count').innerText = cart.reduce((sum, i) => sum + i.qty, 0);
             const container = document.getElementById('cart-items'); container.innerHTML = '';
-            let total = 0;
+            let subtotal = 0;
             if(cart.length === 0) container.innerHTML = '<p class="text-center text-gray-400 mt-10">কার্ট খালি</p>';
             cart.forEach((item, index) => {
-                total += item.price * item.qty;
+                subtotal += item.price * item.qty;
                 container.innerHTML += `
                     <div class="flex items-center gap-3 border-b pb-2 last:border-0">
                         <img src="${item.image}" class="w-12 h-12 rounded object-cover">
@@ -600,8 +651,61 @@
                         </div>
                     </div>`;
             });
-            document.getElementById('cart-subtotal').innerText = '৳' + total;
+            
+            // Calculate discount if coupon is applied
+            if (appliedCoupon) {
+                calculateDiscount(subtotal);
+            } else {
+                discountAmount = 0;
+                document.getElementById('discount-row').style.display = 'none';
+            }
+            
+            const total = subtotal - discountAmount;
+            document.getElementById('cart-subtotal').innerText = '৳' + subtotal;
+            document.getElementById('cart-discount').innerText = '-৳' + discountAmount;
             document.getElementById('cart-total').innerText = '৳' + total;
+        }
+
+        function calculateDiscount(subtotal) {
+            if (!appliedCoupon) return 0;
+            
+            const today = new Date();
+            const expiryDate = appliedCoupon.expiryDate ? appliedCoupon.expiryDate.toDate() : null;
+            
+            // Check if coupon is expired
+            if (expiryDate && today > expiryDate) {
+                alert("এই কুপনের মেয়াদ শেষ হয়ে গেছে");
+                appliedCoupon = null;
+                discountAmount = 0;
+                document.getElementById('coupon-message').innerText = "কুপনের মেয়াদ শেষ";
+                document.getElementById('coupon-message').className = "text-xs text-red-500";
+                document.getElementById('discount-row').style.display = 'none';
+                return 0;
+            }
+            
+            // Check minimum purchase requirement
+            if (appliedCoupon.minPurchase && subtotal < appliedCoupon.minPurchase) {
+                alert(`এই কুপন ব্যবহার করতে সর্বনিম্ন ${appliedCoupon.minPurchase} টাকার অর্ডার করতে হবে`);
+                appliedCoupon = null;
+                discountAmount = 0;
+                document.getElementById('coupon-message').innerText = "সর্বনিম্ন অর্ডার প্রয়োজন";
+                document.getElementById('coupon-message').className = "text-xs text-red-500";
+                document.getElementById('discount-row').style.display = 'none';
+                return 0;
+            }
+            
+            // Calculate discount based on type
+            if (appliedCoupon.type === 'percentage') {
+                discountAmount = Math.round(subtotal * (appliedCoupon.value / 100));
+                // Apply max discount limit if exists
+                if (appliedCoupon.maxDiscount && discountAmount > appliedCoupon.maxDiscount) {
+                    discountAmount = appliedCoupon.maxDiscount;
+                }
+            } else if (appliedCoupon.type === 'fixed') {
+                discountAmount = appliedCoupon.value;
+            }
+            
+            return discountAmount;
         }
 
         function changeQty(index, delta) {
@@ -615,7 +719,189 @@
             if(!document.getElementById('cart-modal').classList.contains('hidden')) updateCartUI();
         }
 
-        // --- 5. CHECKOUT & ORDER ---
+        // --- 5. COUPON SYSTEM ---
+        function applyCoupon() {
+            const code = document.getElementById('coupon-code').value.trim().toUpperCase();
+            if (!code) {
+                document.getElementById('coupon-message').innerText = "কুপন কোড লিখুন";
+                document.getElementById('coupon-message').className = "text-xs text-red-500";
+                return;
+            }
+            
+            db.collection("coupons").where("code", "==", code).get().then(snapshot => {
+                if (snapshot.empty) {
+                    document.getElementById('coupon-message').innerText = "ভুল কুপন কোড";
+                    document.getElementById('coupon-message').className = "text-xs text-red-500";
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const coupon = { id: doc.id, ...doc.data() };
+                    const today = new Date();
+                    
+                    // Check if coupon is active
+                    if (!coupon.active) {
+                        document.getElementById('coupon-message').innerText = "কুপনটি এখন একটিভ নেই";
+                        document.getElementById('coupon-message').className = "text-xs text-red-500";
+                        return;
+                    }
+                    
+                    // Check expiry date
+                    const expiryDate = coupon.expiryDate ? coupon.expiryDate.toDate() : null;
+                    if (expiryDate && today > expiryDate) {
+                        document.getElementById('coupon-message').innerText = "কুপনের মেয়াদ শেষ";
+                        document.getElementById('coupon-message').className = "text-xs text-red-500";
+                        return;
+                    }
+                    
+                    // Check usage limit
+                    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+                        document.getElementById('coupon-message').innerText = "কুপনটি সর্বোচ্চ ব্যবহার হয়েছে";
+                        document.getElementById('coupon-message').className = "text-xs text-red-500";
+                        return;
+                    }
+                    
+                    // Apply coupon
+                    appliedCoupon = coupon;
+                    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                    calculateDiscount(subtotal);
+                    
+                    document.getElementById('discount-row').style.display = 'flex';
+                    document.getElementById('coupon-message').innerText = `কুপন প্রয়োগ হয়েছে! ${coupon.description || ''}`;
+                    document.getElementById('coupon-message').className = "text-xs text-green-600";
+                    updateCartUI();
+                });
+            }).catch(error => {
+                console.error("Error applying coupon:", error);
+                document.getElementById('coupon-message').innerText = "কুপন প্রয়োগে সমস্যা";
+                document.getElementById('coupon-message').className = "text-xs text-red-500";
+            });
+        }
+
+        function applyCheckoutCoupon() {
+            const code = document.getElementById('checkout-coupon').value.trim().toUpperCase();
+            if (!code) {
+                document.getElementById('checkout-coupon-message').innerText = "কুপন কোড লিখুন";
+                document.getElementById('checkout-coupon-message').className = "text-xs text-red-500";
+                return;
+            }
+            
+            db.collection("coupons").where("code", "==", code).get().then(snapshot => {
+                if (snapshot.empty) {
+                    document.getElementById('checkout-coupon-message').innerText = "ভুল কুপন কোড";
+                    document.getElementById('checkout-coupon-message').className = "text-xs text-red-500";
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const coupon = { id: doc.id, ...doc.data() };
+                    const today = new Date();
+                    
+                    // Check if coupon is active
+                    if (!coupon.active) {
+                        document.getElementById('checkout-coupon-message').innerText = "কুপনটি এখন একটিভ নেই";
+                        document.getElementById('checkout-coupon-message').className = "text-xs text-red-500";
+                        return;
+                    }
+                    
+                    // Check expiry date
+                    const expiryDate = coupon.expiryDate ? coupon.expiryDate.toDate() : null;
+                    if (expiryDate && today > expiryDate) {
+                        document.getElementById('checkout-coupon-message').innerText = "কুপনের মেয়াদ শেষ";
+                        document.getElementById('checkout-coupon-message').className = "text-xs text-red-500";
+                        return;
+                    }
+                    
+                    // Check usage limit
+                    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+                        document.getElementById('checkout-coupon-message').innerText = "কুপনটি সর্বোচ্চ ব্যবহার হয়েছে";
+                        document.getElementById('checkout-coupon-message').className = "text-xs text-red-500";
+                        return;
+                    }
+                    
+                    // Apply coupon
+                    appliedCoupon = coupon;
+                    calculateTotal(); // This will recalculate with discount
+                    
+                    document.getElementById('c-discount-row').style.display = 'flex';
+                    document.getElementById('checkout-coupon-message').innerText = `কুপন প্রয়োগ হয়েছে! ${coupon.description || ''}`;
+                    document.getElementById('checkout-coupon-message').className = "text-xs text-green-600";
+                });
+            }).catch(error => {
+                console.error("Error applying coupon:", error);
+                document.getElementById('checkout-coupon-message').innerText = "কুপন প্রয়োগে সমস্যা";
+                document.getElementById('checkout-coupon-message').className = "text-xs text-red-500";
+            });
+        }
+
+        function showAvailableCoupons() {
+            document.getElementById('coupons-modal').classList.remove('hidden');
+            const couponsList = document.getElementById('coupons-list');
+            couponsList.innerHTML = '<div class="text-center py-4"><div class="spinner mb-2"></div><p class="text-gray-500 text-sm">কুপন লোড হচ্ছে...</p></div>';
+            
+            const today = new Date();
+            db.collection("coupons").where("active", "==", true).get().then(snapshot => {
+                couponsList.innerHTML = '';
+                let activeCoupons = 0;
+                
+                snapshot.forEach(doc => {
+                    const coupon = doc.data();
+                    const expiryDate = coupon.expiryDate ? coupon.expiryDate.toDate() : null;
+                    
+                    // Check if coupon is still valid
+                    if (expiryDate && today > expiryDate) return;
+                    
+                    activeCoupons++;
+                    
+                    let discountText = '';
+                    if (coupon.type === 'percentage') {
+                        discountText = `${coupon.value}% ছাড়`;
+                        if (coupon.maxDiscount) {
+                            discountText += ` (সর্বোচ্চ ৳${coupon.maxDiscount})`;
+                        }
+                    } else if (coupon.type === 'fixed') {
+                        discountText = `৳${coupon.value} ছাড়`;
+                    }
+                    
+                    let conditions = '';
+                    if (coupon.minPurchase) {
+                        conditions += `সর্বনিম্ন অর্ডার: ৳${coupon.minPurchase}<br>`;
+                    }
+                    if (expiryDate) {
+                        conditions += `মেয়াদ: ${expiryDate.toLocaleDateString('bn-BD')}`;
+                    }
+                    
+                    couponsList.innerHTML += `
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 class="font-bold text-lg text-green-700">${coupon.code}</h3>
+                                    <p class="text-green-600 font-bold">${discountText}</p>
+                                </div>
+                                <button onclick="copyCouponCode('${coupon.code}')" class="text-blue-600 text-sm"><i class="far fa-copy"></i> কপি</button>
+                            </div>
+                            <p class="text-gray-600 text-sm mb-2">${coupon.description || ''}</p>
+                            <p class="text-xs text-gray-500">${conditions}</p>
+                        </div>
+                    `;
+                });
+                
+                if (activeCoupons === 0) {
+                    couponsList.innerHTML = '<p class="text-center text-gray-500 py-8">এখন কোন সক্রিয় কুপন নেই</p>';
+                }
+            }).catch(error => {
+                console.error("Error loading coupons:", error);
+                couponsList.innerHTML = '<p class="text-center text-red-500 py-8">কুপন লোড করতে সমস্যা</p>';
+            });
+        }
+
+        function copyCouponCode(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                alert(`কুপন কোড কপি করা হয়েছে: ${code}`);
+            });
+        }
+
+        // --- 6. CHECKOUT & ORDER ---
         function openCheckout() {
             // -- RESTRICTION START --
             // অর্ডার করতে হলে ইউজারকে অবশ্যই লগইন থাকতে হবে
@@ -630,6 +916,13 @@
             if(cart.length === 0) return alert("কার্ট খালি!");
             toggleCart();
             document.getElementById('checkout-modal').classList.remove('hidden');
+
+            // Reset coupon for checkout
+            appliedCoupon = null;
+            discountAmount = 0;
+            document.getElementById('checkout-coupon').value = '';
+            document.getElementById('checkout-coupon-message').innerText = '';
+            document.getElementById('c-discount-row').style.display = 'none';
 
             // Load Delivery Zones
             const zoneSelect = document.getElementById('c-zone');
@@ -666,8 +959,24 @@
                 delCharge = settings.deliveryZones[zoneIdx].charge;
             }
 
+            // Calculate discount if coupon is applied
+            if (appliedCoupon) {
+                calculateDiscount(subtotal);
+            } else {
+                discountAmount = 0;
+            }
+
+            document.getElementById('c-subtotal').innerText = '৳' + subtotal;
             document.getElementById('c-delivery').innerText = '৳' + delCharge;
-            document.getElementById('c-grand-total').innerText = '৳' + (subtotal + delCharge);
+            
+            if (discountAmount > 0) {
+                document.getElementById('c-discount').innerText = '-৳' + discountAmount;
+                document.getElementById('c-discount-row').style.display = 'flex';
+            } else {
+                document.getElementById('c-discount-row').style.display = 'none';
+            }
+            
+            document.getElementById('c-grand-total').innerText = '৳' + (subtotal - discountAmount + delCharge);
         }
 
         function togglePaymentFields() {
@@ -699,41 +1008,39 @@
 
             const deliveryCharge = settings.deliveryZones[zoneIdx].charge;
             const subtotal = cart.reduce((a, b) => a + (b.price * b.qty), 0);
-            const total = subtotal + deliveryCharge;
+            const discount = discountAmount || 0;
+            const total = subtotal - discount + deliveryCharge;
             const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
 
             try {
-                // 1. Update Stock for each product in cart
-                const stockUpdatePromises = [];
-                for (const item of cart) {
-                    const productRef = db.collection('products').doc(item.id);
-                    const productDoc = await productRef.get();
-                    if (productDoc.exists) {
-                        const currentStock = productDoc.data().stock || 0;
-                        const newStock = currentStock - item.qty;
-                        if (newStock < 0) {
-                            throw new Error(`${item.name} এর পর্যাপ্ত স্টক নেই`);
-                        }
-                        stockUpdatePromises.push(productRef.update({ stock: newStock }));
-                    }
-                }
-                await Promise.all(stockUpdatePromises);
+                // 1. Update Stock for each product in cart (Stock will be updated when order is delivered, not here)
+                // Stock will be updated when admin marks order as delivered
+                // This prevents stock issues if order is cancelled
 
-                // 2. Save Order to Firestore
+                // 2. Increment coupon usage if applied
+                if (appliedCoupon) {
+                    await db.collection("coupons").doc(appliedCoupon.id).update({
+                        usedCount: firebase.firestore.FieldValue.increment(1)
+                    });
+                }
+
+                // 3. Save Order to Firestore
                 await db.collection('orders').add({
                     orderId,
                     userId: currentUser ? currentUser.uid : null,
                     customer: { name, phone, email, address }, // Saved email in order
                     items: cart,
                     subtotal,
+                    discount: discount,
                     deliveryCharge,
                     total,
                     payment: { method, trxId: trxId || '' },
                     status: 'Pending',
+                    couponCode: appliedCoupon ? appliedCoupon.code : null,
                     date: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // 3. Prepare Email Items List (HTML Format for Template)
+                // 4. Prepare Email Items List (HTML Format for Template)
                 const itemsHtml = cart.map(item => 
                     `<tr>
                         <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
@@ -742,7 +1049,7 @@
                     </tr>`
                 ).join('');
 
-                // 4. Send Professional Email via EmailJS
+                // 5. Send Professional Email via EmailJS
                 if(email) {
                     const emailParams = {
                         to_name: name,
@@ -751,11 +1058,13 @@
                         order_date: new Date().toLocaleDateString('bn-BD'),
                         order_items_html: itemsHtml, // Passing HTML Table Rows
                         subtotal: subtotal,
+                        discount: discount,
                         delivery_charge: deliveryCharge,
                         total_amount: total,
                         delivery_address: address,
                         customer_phone: phone,
-                        payment_method: method
+                        payment_method: method,
+                        coupon_code: appliedCoupon ? appliedCoupon.code : 'None'
                     };
 
                     // Using the Template ID you provided: template_i20ls5b
@@ -765,16 +1074,13 @@
                 }
 
                 alert(`অর্ডার সফল! ID: ${orderId}\nআপনার ইমেইল চেক করুন।`);
-                cart = []; updateCartUI();
+                cart = []; 
+                appliedCoupon = null;
+                discountAmount = 0;
+                updateCartUI();
                 document.getElementById('checkout-modal').classList.add('hidden');
                 document.getElementById('order-form').reset();
                 
-                // Refresh products to show updated stock
-                db.collection("products").orderBy("createdAt", "desc").onSnapshot(snapshot => {
-                    allProducts = [];
-                    snapshot.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
-                    filterProducts();
-                });
             } catch (error) { 
                 console.error(error);
                 alert("অর্ডার ব্যর্থ হয়েছে: " + error.message); 
@@ -784,7 +1090,7 @@
             btn.innerText = "অর্ডার নিশ্চিত করুন";
         });
 
-        // --- 6. ORDER TRACKING FUNCTION ---
+        // --- 7. ORDER TRACKING FUNCTION ---
         async function trackOrder() {
             const orderId = document.getElementById('track-order-id').value.trim();
             if(!orderId) {
@@ -890,7 +1196,7 @@
             }
         }
 
-        // --- 7. AUTH & PROFILE ---
+        // --- 8. AUTH & PROFILE ---
         function toggleAuthMode() {
             document.getElementById('login-form').classList.toggle('hidden');
             document.getElementById('reg-form').classList.toggle('hidden');
@@ -903,13 +1209,13 @@
                 const result = await auth.signInWithPopup(provider);
                 const user = result.user;
                 
-                // চেক করুন ইউজার ডাটাবেসে আছে কিনা, না থাকলে সেভ করুন (অটো রেজিস্ট্রেশন)
+                // Check if user exists in database, if not save (auto registration)
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 if (!userDoc.exists) {
                     await db.collection('users').doc(user.uid).set({
                         name: user.displayName,
                         email: user.email,
-                        phone: '', // Google ফোন দেয় না, তাই খালি
+                        phone: '', // Google doesn't provide phone
                         address: '',
                         role: 'user',
                         joined: new Date()
@@ -917,7 +1223,7 @@
                 }
                 
                 document.getElementById('auth-modal').classList.add('hidden');
-                // প্রোফাইল পেজ রিফ্রেশ করার দরকার নেই, onAuthStateChanged হ্যান্ডেল করবে
+                // Profile page refresh not needed, onAuthStateChanged will handle it
             } catch (error) {
                 console.error("Google Login Error:", error);
                 alert("গুগল লগইন ব্যর্থ হয়েছে: " + error.message);
@@ -954,7 +1260,7 @@
             auth.signOut().then(() => { document.getElementById('orders-modal').classList.add('hidden'); cart=[]; updateCartUI(); });
         }
 
-        // --- 8. PROFILE & ORDER HISTORY (Fixed for Visibility) ---
+        // --- 9. PROFILE & ORDER HISTORY (Fixed for Visibility) ---
         function openProfile() {
             if(!currentUser) return;
             document.getElementById('orders-modal').classList.remove('hidden');
@@ -1043,14 +1349,14 @@
             
             if(!phone) return alert("ফোন নম্বর দেওয়া আবশ্যক");
 
-            // ব্যবহারকারীর তথ্য আপডেট করা হচ্ছে। যদি ডকুমেন্ট আগে না থাকে, set ব্যবহার করা নিরাপদ।
+            // Update user information
             db.collection('users').doc(currentUser.uid).set({ 
                 name, 
                 phone, 
                 address,
-                email: currentUser.email, // ইমেইল মুছে না যায় তাই আবার সেট করছি
-                role: 'user' // রোল যেন মুছে না যায়
-            }, { merge: true }) // merge: true দিলে আগের ডাটা (যেমন joined date) থেকে যাবে
+                email: currentUser.email, // Keep email
+                role: 'user' // Keep role
+            }, { merge: true }) // merge: true preserves existing data
             .then(() => {
                 alert("প্রোফাইল আপডেট হয়েছে");
                 document.getElementById('profile-edit-form').classList.add('hidden');
