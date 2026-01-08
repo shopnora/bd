@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopnora Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; }
+        .active-tab { background-color: #10B981; color: white; }
+        @media print {
+            body * { visibility: hidden; }
+            #invoice-area, #invoice-area * { visibility: visible; }
+            #invoice-area { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-confirmed { background-color: #dbeafe; color: #1e40af; }
+        .status-shipped { background-color: #f0f9ff; color: #0c4a6e; }
+        .status-delivered { background-color: #dcfce7; color: #166534; }
+        .status-cancelled { background-color: #fee2e2; color: #991b1b; }
+        .status-returned { background-color: #fdf4ff; color: #86198f; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden">
+
+    <!-- Login Screen -->
+    <div id="admin-login" class="fixed inset-0 z-50 bg-gray-900 flex items-center justify-center">
+        <div class="bg-white p-8 rounded shadow-lg w-96">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Admin Login</h2>
+            <input type="email" id="adm-email" placeholder="Email" class="w-full border p-2 mb-4 rounded">
+            <input type="password" id="adm-pass" placeholder="Password" class="w-full border p-2 mb-6 rounded">
+            <button onclick="adminLogin()" class="w-full bg-green-600 text-white py-2 rounded font-bold">Login</button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div id="admin-panel" class="hidden h-full flex flex-col md:flex-row">
+        
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-900 text-white flex flex-col hidden md:flex">
+            <div class="p-6 border-b border-gray-700 flex items-center gap-2">
+                <span class="font-bold text-xl">Shopnora Admin</span>
+            </div>
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800 active-tab"><i class="fa-solid fa-chart-line mr-2"></i> ড্যাশবোর্ড</button>
+                <button onclick="switchTab('orders')" id="btn-orders" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800"><i class="fa-solid fa-box mr-2"></i> অর্ডার সমূহ</button>
+                <button onclick="switchTab('products')" id="btn-products" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800"><i class="fa-solid fa-list mr-2"></i> পণ্য তালিকা</button>
+                <button onclick="switchTab('add-product')" id="btn-add-product" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800"><i class="fa-solid fa-plus-circle mr-2"></i> পণ্য যোগ / এডিট</button>
+                <button onclick="switchTab('categories')" id="btn-categories" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800"><i class="fa-solid fa-tags mr-2"></i> ক্যাটাগরি</button>
+                <button onclick="switchTab('customers')" id="btn-customers" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800"><i class="fa-solid fa-users mr-2"></i> গ্রাহক</button>
+                <button onclick="switchTab('coupons')" id="btn-coupons" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800"><i class="fa-solid fa-ticket-alt mr-2"></i> কুপন ম্যানেজমেন্ট</button>
+                <button onclick="switchTab('settings')" id="btn-settings" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-gray-800"><i class="fa-solid fa-cog mr-2"></i> সেটিংস</button>
+                <button onclick="firebase.auth().signOut()" class="w-full text-left px-4 py-3 rounded hover:bg-red-900 mt-10"><i class="fa-solid fa-sign-out mr-2"></i> লগআউট</button>
+            </nav>
+        </aside>
+
+        <!-- Mobile Header -->
+        <div class="md:hidden bg-gray-900 text-white p-4 flex justify-between items-center z-40 fixed w-full top-0">
+            <span class="font-bold">Shopnora Admin</span>
+            <button onclick="document.querySelector('aside').classList.toggle('hidden'); document.querySelector('aside').classList.toggle('fixed'); document.querySelector('aside').classList.toggle('h-full'); document.querySelector('aside').classList.toggle('z-50');" class="text-white text-xl"><i class="fa-solid fa-bars"></i></button>
+        </div>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-8 mt-14 md:mt-0">
+            
+            <!-- Tab: Dashboard -->
+            <div id="view-dashboard">
+                <h2 class="text-2xl font-bold mb-6">বিজনেস ওভারভিউ</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded shadow border-l-4 border-yellow-500">
+                        <p class="text-gray-500">পেন্ডিং অর্ডার</p>
+                        <h3 class="text-3xl font-bold text-yellow-600" id="dash-pending">0</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded shadow border-l-4 border-blue-500">
+                        <p class="text-gray-500">আজকের কনফার্ম অর্ডার</p>
+                        <h3 class="text-3xl font-bold text-blue-600" id="dash-orders">0</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded shadow border-l-4 border-green-500">
+                        <p class="text-gray-500">আজকের বিক্রি (টাকা)</p>
+                        <h3 class="text-3xl font-bold text-green-600" id="dash-sales">৳0</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded shadow border-l-4 border-purple-500">
+                        <p class="text-gray-500">মোট গ্রাহক</p>
+                        <h3 class="text-3xl font-bold text-purple-600" id="dash-customers">0</h3>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded shadow">
+                        <h3 class="font-bold mb-4">অর্ডার স্ট্যাটাস</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">পেন্ডিং:</span>
+                                <span class="font-bold text-yellow-600" id="status-pending">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">কনফার্মড:</span>
+                                <span class="font-bold text-blue-600" id="status-confirmed">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">শিপড:</span>
+                                <span class="font-bold text-indigo-600" id="status-shipped">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">ডেলিভার্ড:</span>
+                                <span class="font-bold text-green-600" id="status-delivered">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">ক্যানসেলড:</span>
+                                <span class="font-bold text-red-600" id="status-cancelled">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded shadow">
+                        <h3 class="font-bold mb-4">সর্বশেষ অর্ডার</h3>
+                        <div id="recent-orders" class="space-y-2">
+                            <!-- Recent orders will load here -->
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="text-xl font-bold mb-4 mt-8">লাভ ও স্টকের হিসাব</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-indigo-50 p-6 rounded shadow">
+                        <p class="text-gray-600 font-bold">সর্বমোট বিক্রি</p>
+                        <h3 class="text-2xl font-bold text-indigo-700" id="total-sales">৳0</h3>
+                        <div class="mt-4 pt-4 border-t border-indigo-200">
+                            <p class="text-gray-600 font-bold">সর্বমোট লাভ (আনুমানিক)</p>
+                            <h3 class="text-2xl font-bold text-green-600" id="total-profit">৳0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-purple-50 p-6 rounded shadow">
+                        <p class="text-gray-600 font-bold">স্টক ম্যানেজমেন্ট</p>
+                        <p class="mt-2">মোট প্রোডাক্ট সংখ্যা: <span id="total-products" class="font-bold">0</span></p>
+                        <p>স্টক ভ্যালু (ক্রয় মূল্য অনুযায়ী): <span id="stock-value" class="font-bold text-purple-700">৳0</span></p>
+                        <p class="mt-2 text-sm text-red-600">স্টক আউট পণ্য: <span id="out-of-stock-count" class="font-bold">0</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Orders -->
+            <div id="view-orders" class="hidden">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold">অর্ডার ম্যানেজমেন্ট</h2>
+                    <div class="flex flex-wrap gap-2">
+                        <input type="text" id="order-search" placeholder="অর্ডার আইডি, নাম, ফোন..." class="border p-2 rounded w-full md:w-64 text-sm">
+                        <select id="order-filter-status" class="border p-2 rounded text-sm">
+                            <option value="all">সকল স্ট্যাটাস</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Returned">Returned</option>
+                        </select>
+                        <input type="date" id="order-filter-date" class="border p-2 rounded text-sm">
+                        <button onclick="applyOrderFilters()" class="bg-green-600 text-white px-4 py-2 rounded text-sm">ফিল্টার</button>
+                        <button onclick="resetOrderFilters()" class="bg-gray-600 text-white px-4 py-2 rounded text-sm">রিসেট</button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto bg-white rounded shadow">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="p-3 text-left text-sm">অর্ডার আইডি</th>
+                                <th class="p-3 text-left text-sm">গ্রাহক</th>
+                                <th class="p-3 text-left text-sm">ঠিকানা</th>
+                                <th class="p-3 text-left text-sm">মোট টাকা</th>
+                                <th class="p-3 text-left text-sm">তারিখ</th>
+                                <th class="p-3 text-left text-sm">স্ট্যাটাস</th>
+                                <th class="p-3 text-left text-sm">অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body" class="text-gray-700 text-sm"></tbody>
+                    </table>
+                </div>
+                <div id="orders-container" class="space-y-4 hidden"></div>
+            </div>
+
+            <!-- Tab: Products List -->
+            <div id="view-products" class="hidden">
+                <h2 class="text-xl font-bold mb-4">সকল পণ্য</h2>
+                <div class="overflow-x-auto bg-white rounded shadow">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="p-3 text-left">ছবি</th>
+                                <th class="p-3 text-left">নাম</th>
+                                <th class="p-3 text-left">স্টক</th>
+                                <th class="p-3 text-left">কেনা/বেচা</th>
+                                <th class="p-3 text-left">অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-table-body" class="text-gray-700 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Add/Edit Product -->
+            <div id="view-add-product" class="hidden">
+                <div class="bg-white p-6 rounded shadow-md max-w-2xl mx-auto">
+                    <h2 class="text-xl font-bold mb-4" id="form-title">নতুন পণ্য যোগ করুন</h2>
+                    <form id="product-form" class="space-y-4">
+                        <input type="hidden" id="p-id"> <!-- Hidden ID for Editing -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="text" id="p-name" placeholder="পণ্যের নাম" class="border p-2 rounded w-full" required>
+                            <select id="p-category" class="border p-2 rounded w-full bg-white"></select>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="text-xs text-gray-500">বিক্রয় মূল্য</label>
+                                <input type="number" id="p-price" placeholder="Sale Price" class="border p-2 rounded w-full" required>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">রেগুলার মূল্য (Show Discount)</label>
+                                <input type="number" id="p-reg-price" placeholder="Reg. Price" class="border p-2 rounded w-full">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">ক্রয় মূল্য (For Profit Calc)</label>
+                                <input type="number" id="p-buy-price" placeholder="Buy Price" class="border p-2 rounded w-full" required>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="number" id="p-stock" placeholder="স্টক সংখ্যা" class="border p-2 rounded w-full" value="10">
+                            <div>
+                                <label class="text-xs text-gray-500 mb-1 block">পণ্যের ছবি (Edit এর সময় খালি রাখলে আগেরটি থাকবে)</label>
+                                <input type="file" id="p-image" class="w-full border p-2 rounded text-sm" accept="image/*">
+                            </div>
+                        </div>
+                        <textarea id="p-desc" placeholder="ছোট বিবরণ" class="border p-2 rounded w-full h-20"></textarea>
+                        
+                        <div class="flex gap-2">
+                            <button type="button" onclick="resetForm()" class="w-1/3 bg-gray-500 text-white py-2 rounded font-bold">রিসেট</button>
+                            <button type="submit" id="submit-btn" class="w-2/3 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">সেভ করুন</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tab: Categories -->
+            <div id="view-categories" class="hidden">
+                <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">ক্যাটাগরি ম্যানেজমেন্ট</h2>
+                    <div class="flex gap-2 mb-6">
+                        <input type="text" id="new-cat-name" placeholder="নতুন ক্যাটাগরি নাম" class="border p-2 flex-1 rounded">
+                        <button onclick="addCategory()" class="bg-blue-600 text-white px-4 rounded">যোগ করুন</button>
+                    </div>
+                    <ul id="cat-list" class="space-y-2"></ul>
+                </div>
+            </div>
+
+            <!-- Tab: Customers -->
+            <div id="view-customers" class="hidden">
+                <h2 class="text-2xl font-bold mb-6">গ্রাহক তালিকা</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="customers-container">
+                    <!-- Customers will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Tab: Coupons Management -->
+            <div id="view-coupons" class="hidden">
+                <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">কুপন ম্যানেজমেন্ট</h2>
+                    
+                    <!-- Add New Coupon Form -->
+                    <div class="bg-gray-50 p-4 rounded mb-6 border">
+                        <h3 class="font-bold mb-3 text-green-700">নতুন কুপন তৈরি করুন</h3>
+                        <form id="coupon-form" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <input type="text" id="c-code" placeholder="কুপন কোড (যেমন: SUMMER25)" class="border p-2 rounded text-sm" required>
+                                <input type="text" id="c-description" placeholder="কুপন বিবরণ" class="border p-2 rounded text-sm">
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500">কুপন টাইপ</label>
+                                    <select id="c-type" class="w-full border p-2 rounded text-sm">
+                                        <option value="percentage">শতাংশ (%)</option>
+                                        <option value="fixed">ফিক্সড টাকা</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">ডিসকাউন্ট ভ্যালু</label>
+                                    <input type="number" id="c-value" placeholder="মান" class="w-full border p-2 rounded text-sm" required>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">সর্বোচ্চ ডিসকাউন্ট (শুধু %)</label>
+                                    <input type="number" id="c-max-discount" placeholder="সর্বোচ্চ" class="w-full border p-2 rounded text-sm">
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500">সর্বনিম্ন অর্ডার (৳)</label>
+                                    <input type="number" id="c-min-purchase" placeholder="সর্বনিম্ন অর্ডার" class="w-full border p-2 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">ব্যবহার সীমা</label>
+                                    <input type="number" id="c-usage-limit" placeholder="কতবার ব্যবহার হবে" class="w-full border p-2 rounded text-sm">
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500">শুরু তারিখ</label>
+                                    <input type="date" id="c-start-date" class="w-full border p-2 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">এক্সপায়ারি তারিখ</label>
+                                    <input type="date" id="c-expiry-date" class="w-full border p-2 rounded text-sm">
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-2 mb-3">
+                                <input type="checkbox" id="c-active" checked>
+                                <label class="text-sm text-gray-700">একটিভ</label>
+                            </div>
+                            
+                            <button type="submit" class="w-full bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">কুপন তৈরি করুন</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Coupons List -->
+                    <h3 class="font-bold mb-3 text-gray-700">সকল কুপন</h3>
+                    <div id="coupons-container" class="space-y-3">
+                        <!-- Coupons will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Settings -->
+            <div id="view-settings" class="hidden">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- General Settings -->
+                    <div class="bg-white p-6 rounded shadow">
+                        <h2 class="text-xl font-bold mb-4">সাধারণ সেটিংস</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block font-bold text-sm mb-1">মার্চেন্ট নাম্বার (বিকাশ/নগদ)</label>
+                                <input type="text" id="set-phone" class="border p-2 w-full rounded">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-sm mb-1">কোম্পানি নাম</label>
+                                <input type="text" id="set-company" class="border p-2 w-full rounded">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-sm mb-1">ঠিকানা (ইনভয়েসের জন্য)</label>
+                                <textarea id="set-address" class="border p-2 w-full rounded" rows="3"></textarea>
+                            </div>
+                            <button onclick="saveGeneralSettings()" class="bg-green-600 text-white px-6 py-2 rounded font-bold">সেভ করুন</button>
+                        </div>
+                    </div>
+
+                    <!-- Delivery Zones -->
+                    <div class="bg-white p-6 rounded shadow">
+                        <h2 class="text-xl font-bold mb-4">ডেলিভারি চার্জ (এলাকা ভিত্তিক)</h2>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="zone-name" placeholder="এলাকার নাম (যেমন: দিনাজপুর সদর)" class="border p-2 flex-1 text-sm rounded">
+                            <input type="number" id="zone-cost" placeholder="চার্জ" class="border p-2 w-20 text-sm rounded">
+                            <button onclick="addZone()" class="bg-blue-600 text-white px-3 rounded">Add</button>
+                        </div>
+                        <ul id="zone-list" class="space-y-2 text-sm"></ul>
+                    </div>
+
+                    <!-- Courier Settings -->
+                    <div class="bg-white p-6 rounded shadow">
+                        <h2 class="text-xl font-bold mb-4">কুরিয়ার ম্যানেজমেন্ট</h2>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="courier-name" placeholder="কুরিয়ার নাম (যেমন: Sundarban)" class="border p-2 flex-1 text-sm rounded">
+                            <input type="text" id="courier-contact" placeholder="যোগাযোগ" class="border p-2 w-40 text-sm rounded">
+                            <button onclick="addCourier()" class="bg-green-600 text-white px-3 rounded">Add</button>
+                        </div>
+                        <ul id="courier-list" class="space-y-2 text-sm">
+                            <!-- Couriers will be loaded here -->
+                        </ul>
+                    </div>
+
+                    <!-- Offers Slider Manager -->
+                    <div class="bg-white p-6 rounded shadow col-span-full">
+                        <h3 class="font-bold text-lg mb-4">ব্যানার / স্লাইডার ম্যানেজমেন্ট</h3>
+                        <div class="flex gap-2 mb-4">
+                            <input type="file" id="offer-file" class="border p-1 w-full text-sm">
+                            <button onclick="uploadOffer()" id="offer-btn" class="bg-purple-600 text-white px-4 rounded text-sm">আপলোড</button>
+                        </div>
+                        <div id="offer-list" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="order-details-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[70] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-4xl p-6 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-green-700">অর্ডার ডিটেইলস</h2>
+                <button onclick="closeOrderDetails()" class="text-2xl text-gray-500">&times;</button>
+            </div>
+            
+            <div id="order-details-content">
+                <!-- Order details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Status Modal -->
+    <div id="update-status-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[70] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md p-6 rounded-lg shadow-xl">
+            <h2 class="text-xl font-bold mb-4">স্ট্যাটাস আপডেট করুন</h2>
+            <input type="hidden" id="current-order-id">
+            <div class="space-y-3 mb-6">
+                <label class="block font-bold">নতুন স্ট্যাটাস</label>
+                <select id="new-status" class="w-full border p-2 rounded">
+                    <option value="Pending">Pending</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Returned">Returned</option>
+                </select>
+                
+                <div id="cancel-reason-container" class="hidden">
+                    <label class="block font-bold mt-3">ক্যানসেল করার কারণ</label>
+                    <textarea id="cancel-reason" class="w-full border p-2 rounded" placeholder="কারণ লিখুন..." rows="3"></textarea>
+                </div>
+                
+                <div id="courier-container" class="hidden">
+                    <label class="block font-bold mt-3">কুরিয়ার নির্বাচন করুন</label>
+                    <select id="courier-select" class="w-full border p-2 rounded">
+                        <!-- Couriers will be loaded here -->
+                    </select>
+                    <input type="text" id="tracking-id" placeholder="ট্র্যাকিং আইডি" class="w-full border p-2 rounded mt-2">
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button onclick="closeStatusModal()" class="px-4 py-2 bg-gray-300 rounded">বাতিল</button>
+                <button onclick="updateOrderStatusConfirm()" class="px-4 py-2 bg-green-600 text-white rounded">আপডেট করুন</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Invoice Template -->
+    <div id="invoice-area" class="hidden bg-white p-10 max-w-2xl mx-auto">
+        <div class="text-center border-b pb-4 mb-4">
+            <h1 class="text-3xl font-bold text-green-700" id="inv-company">Shopnora</h1>
+            <p id="inv-address-text">কাশীডাঙ্গা বাজার, বিরল, দিনাজপুর</p>
+            <p>মোবাইল: <span id="inv-merchant-phone">01737-470024</span></p>
+            <p id="inv-email">support@shopnora.com</p>
+        </div>
+        <div class="flex justify-between mb-6">
+            <div>
+                <p class="text-sm text-gray-500">ইনভয়েস টু:</p>
+                <h3 class="font-bold" id="inv-name">Customer Name</h3>
+                <p id="inv-address">Address</p>
+                <p id="inv-phone">Phone</p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold" id="inv-id">#ORD-123456</p>
+                <p id="inv-date">Date</p>
+                <span id="inv-status" class="px-2 py-1 rounded text-xs">Paid</span>
+            </div>
+        </div>
+        <table class="w-full mb-6">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="text-left p-2">পণ্য</th>
+                    <th class="text-center p-2">পরিমাণ</th>
+                    <th class="text-right p-2">দাম</th>
+                    <th class="text-right p-2">মোট</th>
+                </tr>
+            </thead>
+            <tbody id="inv-items"></tbody>
+        </table>
+        <div class="flex justify-end">
+            <div class="w-48 space-y-2">
+                <div class="flex justify-between"><span>সাব-টোটাল:</span> <span id="inv-sub">0</span></div>
+                <div class="flex justify-between"><span>ডেলিভারি:</span> <span id="inv-del">0</span></div>
+                <div class="flex justify-between font-bold border-t pt-2"><span>সর্বমোট:</span> <span id="inv-total">0</span></div>
+            </div>
+        </div>
+        <div class="mt-10 text-center text-sm text-gray-500 border-t pt-4">
+            <p>আমাদের সাথে থাকার জন্য ধন্যবাদ! আপনার দিনটি শুভ হোক।</p>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8vG1hw9CM3xx5hSK4uphBhDhFg3vOuUU",
+            authDomain: "shopnora2.firebasestorage.app",
+            projectId: "shopnora2",
+            storageBucket: "shopnora2.firebasestorage.app",
+            messagingSenderId: "51821256004",
+            appId: "1:51821256004:web:45f58b800c3852ba6e4b11",
+            measurementId: "G-361G2NMH7Z"
+        };
+        const IMGBB_API_KEY = "650aa920e240f1c7216b71dbf5114041";
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        let deliveryZones = [];
+        let couriers = [];
+        let editingProductId = null;
+        let editingCouponId = null;
+        let currentFilters = { status: 'all', date: '', search: '' };
+
+        // --- 2. AUTHENTICATION ---
+        auth.onAuthStateChanged(user => {
+            if(user) {
+                document.getElementById('admin-login').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+                loadSettings();
+                loadDashboardStats();
+                loadCoupons();
+                loadCouriers();
+                loadCustomers();
+                loadOrdersTable();
+            } else {
+                document.getElementById('admin-login').classList.remove('hidden');
+                document.getElementById('admin-panel').classList.add('hidden');
+            }
+        });
+
+        function adminLogin() {
+            const e = document.getElementById('adm-email').value;
+            const p = document.getElementById('adm-pass').value;
+            auth.signInWithEmailAndPassword(e, p).catch(err => alert("Login Failed: " + err.message));
+        }
+
+        // --- 3. NAVIGATION ---
+        function switchTab(tabId) {
+            document.querySelectorAll('main > div').forEach(div => div.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active-tab'));
+            
+            document.getElementById('view-' + tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId)?.classList.add('active-tab');
+
+            if(tabId === 'add-product') resetForm();
+            if(tabId === 'coupons') loadCoupons();
+            if(tabId === 'orders') loadOrdersTable();
+            if(tabId === 'customers') loadCustomers();
+        }
+
+        // --- 4. DASHBOARD & STATS ---
+        function loadDashboardStats() {
+            // Orders Stats
+            db.collection("orders").onSnapshot(snap => {
+                let todaySales = 0, todayOrders = 0, pending = 0, confirmed = 0, shipped = 0, delivered = 0, cancelled = 0;
+                let totalSales = 0, totalProfit = 0;
+                const today = new Date().toDateString();
+                const recentOrders = [];
+
+                snap.forEach(doc => {
+                    const o = doc.data();
+                    const oDate = o.date ? o.date.toDate() : new Date();
+
+                    // Count by status
+                    if(o.status === 'Pending') pending++;
+                    else if(o.status === 'Confirmed') confirmed++;
+                    else if(o.status === 'Shipped') shipped++;
+                    else if(o.status === 'Delivered') delivered++;
+                    else if(o.status === 'Cancelled') cancelled++;
+
+                    if(o.status !== 'Cancelled') {
+                        totalSales += o.total;
+                        
+                        // Calculate Profit
+                        let orderCost = 0;
+                        if(o.items) {
+                            o.items.forEach(item => {
+                                const buyPrice = item.buyingPrice || (item.price * 0.8);
+                                orderCost += (buyPrice * item.qty);
+                            });
+                        }
+                        totalProfit += (o.subtotal - orderCost);
+
+                        if(oDate.toDateString() === today) {
+                            todayOrders++;
+                            todaySales += o.total;
+                        }
+                    }
+
+                    // Collect recent orders
+                    recentOrders.push({ id: doc.id, ...o, date: oDate });
+                });
+
+                // Update dashboard
+                document.getElementById('dash-pending').innerText = pending;
+                document.getElementById('dash-orders').innerText = todayOrders;
+                document.getElementById('dash-sales').innerText = '৳' + todaySales;
+                document.getElementById('total-sales').innerText = '৳' + totalSales;
+                document.getElementById('total-profit').innerText = '৳' + Math.round(totalProfit);
+
+                // Update status counts
+                document.getElementById('status-pending').innerText = pending;
+                document.getElementById('status-confirmed').innerText = confirmed;
+                document.getElementById('status-shipped').innerText = shipped;
+                document.getElementById('status-delivered').innerText = delivered;
+                document.getElementById('status-cancelled').innerText = cancelled;
+
+                // Show recent orders
+                recentOrders.sort((a, b) => b.date - a.date);
+                const recentContainer = document.getElementById('recent-orders');
+                recentContainer.innerHTML = '';
+                recentOrders.slice(0, 5).forEach(order => {
+                    recentContainer.innerHTML += `
+                        <div class="border-b pb-2">
+                            <div class="flex justify-between">
+                                <span class="font-medium">${order.customer.name}</span>
+                                <span class="text-green-600 font-bold">৳${order.total}</span>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-500">
+                                <span>${order.orderId}</span>
+                                <span class="px-2 py-0.5 rounded text-xs ${getStatusClass(order.status)}">${order.status}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+
+            // Stock Stats
+            db.collection("products").onSnapshot(snap => {
+                let count = 0, stockVal = 0, outOfStockCount = 0;
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    count++;
+                    stockVal += (p.stock * (p.buyingPrice || 0));
+                    if(p.stock <= 0) outOfStockCount++;
+                });
+                document.getElementById('total-products').innerText = count;
+                document.getElementById('stock-value').innerText = '৳' + stockVal;
+                document.getElementById('out-of-stock-count').innerText = outOfStockCount;
+            });
+
+            // Customer Count
+            db.collection("users").onSnapshot(snap => {
+                document.getElementById('dash-customers').innerText = snap.size;
+            });
+        }
+
+        // --- 5. ORDER MANAGEMENT ---
+        function loadOrdersTable() {
+            let query = db.collection("orders").orderBy("date", "desc");
+
+            // Apply filters
+            if (currentFilters.status !== 'all') {
+                query = query.where("status", "==", currentFilters.status);
+            }
+
+            query.onSnapshot(snap => {
+                const tbody = document.getElementById('orders-table-body');
+                tbody.innerHTML = '';
+
+                if (snap.empty) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-gray-500">কোনো অর্ডার পাওয়া যায়নি</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                snap.forEach(doc => {
+                    const o = doc.data();
+                    const oDate = o.date ? o.date.toDate() : new Date();
+                    const dateStr = oDate.toLocaleDateString('bn-BD');
+                    const timeStr = oDate.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
+
+                    // Apply search filter
+                    if (currentFilters.search) {
+                        const searchTerm = currentFilters.search.toLowerCase();
+                        const matches = o.orderId.toLowerCase().includes(searchTerm) ||
+                                       o.customer.name.toLowerCase().includes(searchTerm) ||
+                                       o.customer.phone.includes(searchTerm);
+                        if (!matches) return;
+                    }
+
+                    // Apply date filter
+                    if (currentFilters.date) {
+                        const filterDate = new Date(currentFilters.date).toDateString();
+                        if (oDate.toDateString() !== filterDate) return;
+                    }
+
+                    tbody.innerHTML += `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3">
+                                <span class="font-bold">${o.orderId}</span>
+                            </td>
+                            <td class="p-3">
+                                <div class="font-semibold">${o.customer.name}</div>
+                                <div class="text-gray-600 text-sm">${o.customer.phone}</div>
+                            </td>
+                            <td class="p-3">
+                                <div class="text-xs text-gray-600 max-w-xs truncate">${o.customer.address}</div>
+                            </td>
+                            <td class="p-3 font-bold text-green-600">৳${o.total}</td>
+                            <td class="p-3">
+                                <div class="text-sm">${dateStr}</div>
+                                <div class="text-xs text-gray-500">${timeStr}</div>
+                            </td>
+                            <td class="p-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(o.status)}">
+                                    ${o.status}
+                                </span>
+                            </td>
+                            <td class="p-3">
+                                <div class="flex gap-1">
+                                    <button onclick="viewOrderDetails('${doc.id}')" class="text-blue-500 hover:text-blue-700" title="ডিটেইলস">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                    <button onclick="openStatusModal('${doc.id}', '${o.status}')" class="text-green-500 hover:text-green-700" title="স্ট্যাটাস">
+                                        <i class="fa-solid fa-sync-alt"></i>
+                                    </button>
+                                    <button onclick="printInvoiceFromId('${doc.id}')" class="text-purple-500 hover:text-purple-700" title="রশিদ">
+                                        <i class="fa-solid fa-print"></i>
+                                    </button>
+                                    <button onclick="deleteOrder('${doc.id}')" class="text-red-500 hover:text-red-700" title="ডিলিট">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        function getStatusClass(status) {
+            switch(status) {
+                case 'Pending': return 'status-pending';
+                case 'Confirmed': return 'status-confirmed';
+                case 'Shipped': return 'status-shipped';
+                case 'Delivered': return 'status-delivered';
+                case 'Cancelled': return 'status-cancelled';
+                case 'Returned': return 'status-returned';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function applyOrderFilters() {
+            currentFilters = {
+                status: document.getElementById('order-filter-status').value,
+                date: document.getElementById('order-filter-date').value,
+                search: document.getElementById('order-search').value
+            };
+            loadOrdersTable();
+        }
+
+        function resetOrderFilters() {
+            document.getElementById('order-filter-status').value = 'all';
+            document.getElementById('order-filter-date').value = '';
+            document.getElementById('order-search').value = '';
+            currentFilters = { status: 'all', date: '', search: '' };
+            loadOrdersTable();
+        }
+
+        // --- 6. ORDER DETAILS VIEW ---
+        async function viewOrderDetails(orderId) {
+            try {
+                const doc = await db.collection("orders").doc(orderId).get();
+                if (!doc.exists) {
+                    alert("অর্ডারটি পাওয়া যায়নি");
+                    return;
+                }
+
+                const order = doc.data();
+                const orderDate = order.date ? order.date.toDate() : new Date();
+                const deliveryDate = order.deliveredAt ? order.deliveredAt.toDate() : null;
+                const statusClass = getStatusClass(order.status);
+
+                // Build items HTML
+                let itemsHtml = '';
+                if (order.items && order.items.length > 0) {
+                    order.items.forEach((item, index) => {
+                        itemsHtml += `
+                            <tr class="border-b">
+                                <td class="p-2">${index + 1}</td>
+                                <td class="p-2">
+                                    <div class="flex items-center gap-3">
+                                        <img src="${item.image}" class="w-12 h-12 object-cover rounded">
+                                        <div>
+                                            <div class="font-medium">${item.name}</div>
+                                            <div class="text-sm text-gray-500">ক্রয়: ৳${item.buyingPrice || 'N/A'} | বিক্রয়: ৳${item.price}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-2 text-center">${item.qty}</td>
+                                <td class="p-2 text-right">৳${item.price}</td>
+                                <td class="p-2 text-right font-bold">৳${item.price * item.qty}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Build timeline HTML
+                let timelineHtml = '';
+                const timelineData = [
+                    { status: 'Pending', label: 'অর্ডার রিসিভড', date: orderDate, icon: 'fa-clock' },
+                    { status: 'Confirmed', label: 'অর্ডার কনফার্মড', date: order.status !== 'Pending' ? new Date(orderDate.getTime() + 3600000) : null, icon: 'fa-check-circle' },
+                    { status: 'Shipped', label: 'শিপড', date: order.status === 'Shipped' || order.status === 'Delivered' ? new Date(orderDate.getTime() + 7200000) : null, icon: 'fa-truck' },
+                    { status: 'Delivered', label: 'ডেলিভার্ড', date: deliveryDate, icon: 'fa-home' }
+                ];
+
+                timelineData.forEach((item, index) => {
+                    const isActive = index <= timelineData.findIndex(t => t.status === order.status);
+                    timelineHtml += `
+                        <div class="flex items-center mb-4">
+                            <div class="flex flex-col items-center mr-4">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-400'}">
+                                    <i class="fas ${item.icon}"></i>
+                                </div>
+                                ${index < timelineData.length - 1 ? `<div class="h-8 w-1 ${isActive ? 'bg-green-300' : 'bg-gray-300'}"></div>` : ''}
+                            </div>
+                            <div>
+                                <p class="font-bold ${isActive ? 'text-green-700' : 'text-gray-500'}">${item.label}</p>
+                                <p class="text-sm text-gray-500">${item.date ? item.date.toLocaleDateString('bn-BD') + ' ' + item.date.toLocaleTimeString('bn-BD', {hour: '2-digit', minute:'2-digit'}) : 'প্রক্রিয়াধীন'}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                const content = `
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <!-- Order Info -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white border rounded-lg p-4 mb-4">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 class="font-bold text-xl">${order.orderId}</h3>
+                                        <p class="text-gray-600">${orderDate.toLocaleDateString('bn-BD')} ${orderDate.toLocaleTimeString('bn-BD', {hour: '2-digit', minute:'2-digit'})}</p>
+                                    </div>
+                                    <span class="px-4 py-2 rounded-full font-bold ${statusClass}">${order.status}</span>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <h4 class="font-bold mb-2">গ্রাহক তথ্য</h4>
+                                        <p><strong>নাম:</strong> ${order.customer.name}</p>
+                                        <p><strong>ফোন:</strong> ${order.customer.phone}</p>
+                                        <p><strong>ইমেইল:</strong> ${order.customer.email || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold mb-2">ডেলিভারি তথ্য</h4>
+                                        <p><strong>ঠিকানা:</strong> ${order.customer.address}</p>
+                                        <p><strong>এলাকা:</strong> ${order.zone || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Order Items -->
+                            <div class="bg-white border rounded-lg p-4">
+                                <h4 class="font-bold mb-3">পণ্য তালিকা</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full">
+                                        <thead class="bg-gray-100">
+                                            <tr>
+                                                <th class="p-2 text-left">#</th>
+                                                <th class="p-2 text-left">পণ্য</th>
+                                                <th class="p-2 text-center">পরিমাণ</th>
+                                                <th class="p-2 text-right">দাম</th>
+                                                <th class="p-2 text-right">মোট</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${itemsHtml}</tbody>
+                                        <tfoot class="bg-gray-50">
+                                            <tr>
+                                                <td colspan="3" class="p-2 text-right font-bold">সাব-টোটাল:</td>
+                                                <td colspan="2" class="p-2 text-right font-bold">৳${order.subtotal}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="3" class="p-2 text-right">ডেলিভারি চার্জ:</td>
+                                                <td colspan="2" class="p-2 text-right">৳${order.deliveryCharge}</td>
+                                            </tr>
+                                            <tr class="border-t">
+                                                <td colspan="3" class="p-2 text-right font-bold text-lg">সর্বমোট:</td>
+                                                <td colspan="2" class="p-2 text-right font-bold text-lg text-green-600">৳${order.total}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar -->
+                        <div class="space-y-6">
+                            <!-- Payment Info -->
+                            <div class="bg-white border rounded-lg p-4">
+                                <h4 class="font-bold mb-3">পেমেন্ট তথ্য</h4>
+                                <p><strong>মেথড:</strong> ${order.payment.method}</p>
+                                ${order.payment.trxId ? `<p><strong>TrxID:</strong> ${order.payment.trxId}</p>` : ''}
+                                <p><strong>স্ট্যাটাস:</strong> ${order.payment.method === 'COD' ? 'ডেলিভারির সময়' : 'পেইড'}</p>
+                            </div>
+
+                            <!-- Timeline -->
+                            <div class="bg-white border rounded-lg p-4">
+                                <h4 class="font-bold mb-3">অর্ডার টাইমলাইন</h4>
+                                ${timelineHtml}
+                            </div>
+
+                            <!-- Courier Info -->
+                            ${order.courier ? `
+                                <div class="bg-white border rounded-lg p-4">
+                                    <h4 class="font-bold mb-3">কুরিয়ার তথ্য</h4>
+                                    <p><strong>কুরিয়ার:</strong> ${order.courier.name}</p>
+                                    <p><strong>ট্র্যাকিং আইডি:</strong> ${order.trackingId || 'N/A'}</p>
+                                </div>
+                            ` : ''}
+
+                            <!-- Actions -->
+                            <div class="bg-white border rounded-lg p-4">
+                                <h4 class="font-bold mb-3">অ্যাকশন</h4>
+                                <div class="space-y-2">
+                                    <button onclick="openStatusModal('${orderId}', '${order.status}')" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+                                        <i class="fa-solid fa-sync-alt mr-2"></i>স্ট্যাটাস আপডেট
+                                    </button>
+                                    <button onclick="printInvoiceFromId('${orderId}')" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                                        <i class="fa-solid fa-print mr-2"></i>রশিদ প্রিন্ট
+                                    </button>
+                                    ${order.status !== 'Delivered' && order.status !== 'Cancelled' ? `
+                                        <button onclick="cancelOrderWithReason('${orderId}')" class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">
+                                            <i class="fa-solid fa-times mr-2"></i>অর্ডার ক্যানসেল
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('order-details-content').innerHTML = content;
+                document.getElementById('order-details-modal').classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error loading order details:", error);
+                alert("ডিটেইলস লোড করতে সমস্যা: " + error.message);
+            }
+        }
+
+        function closeOrderDetails() {
+            document.getElementById('order-details-modal').classList.add('hidden');
+        }
+
+        // --- 7. STATUS MANAGEMENT ---
+        function openStatusModal(orderId, currentStatus) {
+            document.getElementById('current-order-id').value = orderId;
+            document.getElementById('new-status').value = currentStatus;
+            
+            // Show/hide reason field for cancellation
+            const reasonContainer = document.getElementById('cancel-reason-container');
+            reasonContainer.classList.add('hidden');
+            
+            // Show/hide courier field for shipping
+            const courierContainer = document.getElementById('courier-container');
+            courierContainer.classList.add('hidden');
+            
+            // Load couriers for shipping status
+            const courierSelect = document.getElementById('courier-select');
+            courierSelect.innerHTML = '<option value="">কুরিয়ার নির্বাচন করুন</option>';
+            couriers.forEach((courier, index) => {
+                courierSelect.innerHTML += `<option value="${index}">${courier.name} - ${courier.contact}</option>`;
+            });
+            
+            // Add event listener to show/hide fields based on status
+            document.getElementById('new-status').addEventListener('change', function() {
+                if (this.value === 'Cancelled') {
+                    reasonContainer.classList.remove('hidden');
+                    courierContainer.classList.add('hidden');
+                } else if (this.value === 'Shipped') {
+                    courierContainer.classList.remove('hidden');
+                    reasonContainer.classList.add('hidden');
+                } else {
+                    reasonContainer.classList.add('hidden');
+                    courierContainer.classList.add('hidden');
+                }
+            });
+            
+            document.getElementById('update-status-modal').classList.remove('hidden');
+        }
+
+        function closeStatusModal() {
+            document.getElementById('update-status-modal').classList.add('hidden');
+        }
+
+        async function updateOrderStatusConfirm() {
+            const orderId = document.getElementById('current-order-id').value;
+            const newStatus = document.getElementById('new-status').value;
+            const cancelReason = document.getElementById('cancel-reason').value;
+            const courierIndex = document.getElementById('courier-select').value;
+            const trackingId = document.getElementById('tracking-id').value;
+            
+            try {
+                const updateData = {
+                    status: newStatus,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                if (newStatus === 'Cancelled' && cancelReason) {
+                    updateData.cancelReason = cancelReason;
+                    updateData.cancelledAt = firebase.firestore.FieldValue.serverTimestamp();
+                    
+                    // If order is cancelled, return stock
+                    await returnStockForOrder(orderId);
+                }
+                
+                if (newStatus === 'Shipped' && courierIndex !== '') {
+                    updateData.courier = couriers[courierIndex];
+                    if (trackingId) updateData.trackingId = trackingId;
+                    updateData.shippedAt = firebase.firestore.FieldValue.serverTimestamp();
+                }
+                
+                if (newStatus === 'Delivered') {
+                    updateData.deliveredAt = firebase.firestore.FieldValue.serverTimestamp();
+                }
+                
+                await db.collection("orders").doc(orderId).update(updateData);
+                alert("স্ট্যাটাস আপডেট হয়েছে!");
+                closeStatusModal();
+                loadOrdersTable();
+                
+            } catch (error) {
+                console.error("Error updating status:", error);
+                alert("স্ট্যাটাস আপডেট ব্যর্থ: " + error.message);
+            }
+        }
+
+        async function returnStockForOrder(orderId) {
+            try {
+                const orderDoc = await db.collection("orders").doc(orderId).get();
+                if (!orderDoc.exists) return;
+                
+                const order = orderDoc.data();
+                
+                if (order.items && order.items.length > 0) {
+                    for (const item of order.items) {
+                        const productRef = db.collection('products').doc(item.id);
+                        const productDoc = await productRef.get();
+                        
+                        if (productDoc.exists) {
+                            const currentStock = productDoc.data().stock || 0;
+                            const newStock = currentStock + item.qty;
+                            await productRef.update({ stock: newStock });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error returning stock:", error);
+            }
+        }
+
+        function cancelOrderWithReason(orderId) {
+            if (confirm("আপনি কি এই অর্ডারটি ক্যানসেল করতে চান?")) {
+                document.getElementById('current-order-id').value = orderId;
+                document.getElementById('new-status').value = 'Cancelled';
+                document.getElementById('cancel-reason-container').classList.remove('hidden');
+                document.getElementById('courier-container').classList.add('hidden');
+                document.getElementById('update-status-modal').classList.remove('hidden');
+            }
+        }
+
+        // --- 8. CUSTOMER MANAGEMENT ---
+        function loadCustomers() {
+            db.collection("users").onSnapshot(snap => {
+                const container = document.getElementById('customers-container');
+                container.innerHTML = '';
+                
+                if (snap.empty) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-8 col-span-full">কোনো গ্রাহক পাওয়া যায়নি</p>';
+                    return;
+                }
+                
+                snap.forEach(doc => {
+                    const user = { id: doc.id, ...doc.data() };
+                    
+                    // Load user's orders
+                    db.collection("orders").where("userId", "==", doc.id).get().then(orderSnap => {
+                        const totalOrders = orderSnap.size;
+                        let totalSpent = 0;
+                        orderSnap.forEach(orderDoc => {
+                            const order = orderDoc.data();
+                            if (order.status !== 'Cancelled') {
+                                totalSpent += order.total;
+                            }
+                        });
+                        
+                        const customerCard = `
+                            <div class="bg-white rounded-lg shadow p-6">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 class="font-bold text-lg">${user.name || 'নাম নেই'}</h3>
+                                        <p class="text-gray-600 text-sm">${user.email || 'ইমেইল নেই'}</p>
+                                    </div>
+                                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
+                                        ${user.role || 'গ্রাহক'}
+                                    </span>
+                                </div>
+                                
+                                <div class="space-y-3 mb-4">
+                                    <div class="flex items-center text-sm">
+                                        <i class="fa-solid fa-phone text-gray-400 w-5"></i>
+                                        <span class="ml-2">${user.phone || 'ফোন নেই'}</span>
+                                    </div>
+                                    ${user.address ? `
+                                        <div class="flex items-start text-sm">
+                                            <i class="fa-solid fa-map-marker-alt text-gray-400 w-5 mt-1"></i>
+                                            <span class="ml-2">${user.address}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-2 mb-4">
+                                    <div class="bg-gray-50 p-2 rounded text-center">
+                                        <p class="text-sm text-gray-500">অর্ডার</p>
+                                        <p class="font-bold">${totalOrders}</p>
+                                    </div>
+                                    <div class="bg-gray-50 p-2 rounded text-center">
+                                        <p class="text-sm text-gray-500">খরচ</p>
+                                        <p class="font-bold">৳${totalSpent}</p>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="viewCustomerOrders('${doc.id}', '${user.name}')" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 text-sm">
+                                    অর্ডার হিস্ট্রি দেখুন
+                                </button>
+                            </div>
+                        `;
+                        
+                        container.innerHTML += customerCard;
+                    });
+                });
+            });
+        }
+
+        function viewCustomerOrders(userId, customerName) {
+            switchTab('orders');
+            document.getElementById('order-search').value = customerName;
+            applyOrderFilters();
+        }
+
+        // --- 9. COURIER MANAGEMENT ---
+        function loadCouriers() {
+            db.collection("settings").doc("config").onSnapshot(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    couriers = data.couriers || [];
+                    renderCouriers();
+                }
+            });
+        }
+
+        function renderCouriers() {
+            const list = document.getElementById('courier-list');
+            list.innerHTML = '';
+            couriers.forEach((c, i) => {
+                list.innerHTML += `
+                    <li class="flex justify-between bg-gray-50 p-2 rounded">
+                        <div>
+                            <span class="font-medium">${c.name}</span>
+                            <span class="text-gray-600 text-sm ml-2">${c.contact}</span>
+                        </div>
+                        <button onclick="removeCourier(${i})" class="text-red-500 text-sm">X</button>
+                    </li>
+                `;
+            });
+        }
+
+        function addCourier() {
+            const name = document.getElementById('courier-name').value;
+            const contact = document.getElementById('courier-contact').value;
+            
+            if (name && contact) {
+                couriers.push({ name, contact });
+                updateCouriersDb();
+                document.getElementById('courier-name').value = '';
+                document.getElementById('courier-contact').value = '';
+            }
+        }
+
+        function removeCourier(index) {
+            if (confirm("কুরিয়ার মুছে ফেলতে চান?")) {
+                couriers.splice(index, 1);
+                updateCouriersDb();
+            }
+        }
+
+        function updateCouriersDb() {
+            db.collection("settings").doc("config").set({ couriers }, { merge: true });
+        }
+
+        // --- 10. DELETE ORDER ---
+        async function deleteOrder(orderId) {
+            if (!confirm("আপনি কি এই অর্ডারটি সম্পূর্ণ মুছে ফেলতে চান? এই কাজটি পূর্বাবস্থায় ফিরিয়ে আনা যাবে না।")) {
+                return;
+            }
+            
+            try {
+                // First, return stock if order was not cancelled
+                const orderDoc = await db.collection("orders").doc(orderId).get();
+                if (orderDoc.exists) {
+                    const order = orderDoc.data();
+                    if (order.status !== 'Cancelled') {
+                        await returnStockForOrder(orderId);
+                    }
+                }
+                
+                // Then delete the order
+                await db.collection("orders").doc(orderId).delete();
+                alert("অর্ডার মুছে ফেলা হয়েছে!");
+                loadOrdersTable();
+                
+            } catch (error) {
+                console.error("Error deleting order:", error);
+                alert("অর্ডার ডিলিট ব্যর্থ: " + error.message);
+            }
+        }
+
+        // --- 11. INVOICE PRINTING ---
+        async function printInvoiceFromId(orderId) {
+            try {
+                const doc = await db.collection("orders").doc(orderId).get();
+                if (!doc.exists) {
+                    alert("অর্ডারটি পাওয়া যায়নি");
+                    return;
+                }
+                
+                const order = doc.data();
+                const orderDate = order.date ? order.date.toDate() : new Date();
+                
+                // Load settings for company info
+                const settingsDoc = await db.collection("settings").doc("config").get();
+                const settings = settingsDoc.exists ? settingsDoc.data() : {};
+                
+                // Fill invoice
+                document.getElementById('inv-company').innerText = settings.companyName || 'Shopnora';
+                document.getElementById('inv-address-text').innerText = settings.address || 'কাশীডাঙ্গা বাজার, বিরল, দিনাজপুর';
+                document.getElementById('inv-merchant-phone').innerText = settings.merchantNumber || '01737-470024';
+                
+                document.getElementById('inv-name').innerText = order.customer.name;
+                document.getElementById('inv-phone').innerText = order.customer.phone;
+                document.getElementById('inv-address').innerText = order.customer.address;
+                document.getElementById('inv-id').innerText = "#" + order.orderId;
+                document.getElementById('inv-date').innerText = orderDate.toLocaleDateString('bn-BD') + ' ' + orderDate.toLocaleTimeString('bn-BD', {hour: '2-digit', minute:'2-digit'});
+                document.getElementById('inv-status').innerText = order.status;
+                document.getElementById('inv-status').className = `px-2 py-1 rounded text-xs ${getStatusClass(order.status)}`;
+
+                const tbody = document.getElementById('inv-items');
+                tbody.innerHTML = '';
+                order.items.forEach((i, index) => {
+                    tbody.innerHTML += `
+                        <tr class="border-b">
+                            <td class="p-2">${index + 1}. ${i.name}</td>
+                            <td class="text-center p-2">${i.qty}</td>
+                            <td class="text-right p-2">৳${i.price}</td>
+                            <td class="text-right p-2">৳${i.price * i.qty}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('inv-sub').innerText = '৳' + order.subtotal;
+                document.getElementById('inv-del').innerText = '৳' + order.deliveryCharge;
+                document.getElementById('inv-total').innerText = '৳' + order.total;
+
+                // Print
+                window.print();
+                
+            } catch (error) {
+                console.error("Error printing invoice:", error);
+                alert("ইনভয়েস প্রিন্ট করতে সমস্যা: " + error.message);
+            }
+        }
+
+        // --- 12. PRODUCT MANAGEMENT (ADD / EDIT) ---
+        
+        // Load Categories
+        db.collection("categories").onSnapshot(snap => {
+            const select = document.getElementById('p-category');
+            const list = document.getElementById('cat-list');
+            select.innerHTML = '<option value="">ক্যাটাগরি সিলেক্ট করুন</option>';
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const c = doc.data();
+                select.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                list.innerHTML += `<li class="flex justify-between border p-2 rounded"><span>${c.name}</span><button onclick="db.collection('categories').doc('${doc.id}').delete()" class="text-red-500"><i class="fa-solid fa-trash"></i></button></li>`;
+            });
+        });
+
+        function addCategory() {
+            const name = document.getElementById('new-cat-name').value;
+            if(name) { db.collection('categories').add({ name, active: true }); document.getElementById('new-cat-name').value = ''; }
+        }
+
+        // Form Submit (Add or Update)
+        document.getElementById('product-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true; btn.innerText = "অপেক্ষা করুন...";
+
+            const name = document.getElementById('p-name').value;
+            const price = Number(document.getElementById('p-price').value);
+            const regPrice = Number(document.getElementById('p-reg-price').value);
+            const buyPrice = Number(document.getElementById('p-buy-price').value);
+            const stock = Number(document.getElementById('p-stock').value);
+            const category = document.getElementById('p-category').value;
+            const desc = document.getElementById('p-desc').value;
+            const file = document.getElementById('p-image').files[0];
+
+            let imageUrl = null;
+            if(file) {
+                const formData = new FormData(); formData.append("image", file);
+                try {
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+                    const data = await res.json();
+                    if(data.success) imageUrl = data.data.url;
+                } catch(err) { console.error(err); alert("ছবি আপলোড হয়নি"); }
+            }
+
+            const productData = {
+                name, price, stock, category, description: desc,
+                buyingPrice: buyPrice,
+                regularPrice: regPrice || price,
+                discount: regPrice > price ? Math.round(((regPrice - price)/regPrice)*100) : 0,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            if(imageUrl) productData.image = imageUrl;
+
+            try {
+                if(editingProductId) {
+                    // If editing and no new image, keep the old image
+                    if(!imageUrl) {
+                        const oldDoc = await db.collection("products").doc(editingProductId).get();
+                        if(oldDoc.exists) {
+                            productData.image = oldDoc.data().image;
+                        }
+                    }
+                    await db.collection("products").doc(editingProductId).update(productData);
+                    alert("পণ্য আপডেট হয়েছে!");
+                } else {
+                    productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    if(!imageUrl) return alert("নতুন পণ্যের জন্য ছবি বাধ্যতামূলক");
+                    productData.image = imageUrl; 
+                    await db.collection("products").add(productData);
+                    alert("পণ্য যোগ হয়েছে!");
+                }
+                resetForm();
+                switchTab('products');
+            } catch (err) { alert("সমস্যা হয়েছে: " + err.message); }
+            
+            btn.disabled = false; btn.innerText = "সেভ করুন";
+        });
+
+        function editProduct(id, dataStr) {
+            const data = JSON.parse(decodeURIComponent(dataStr));
+            editingProductId = id;
+            document.getElementById('form-title').innerText = "পণ্য এডিট করুন";
+            document.getElementById('p-id').value = id;
+            document.getElementById('p-name').value = data.name;
+            document.getElementById('p-price').value = data.price;
+            document.getElementById('p-reg-price').value = data.regularPrice || '';
+            document.getElementById('p-buy-price').value = data.buyingPrice || '';
+            document.getElementById('p-stock').value = data.stock;
+            document.getElementById('p-category').value = data.category;
+            document.getElementById('p-desc').value = data.description;
+            document.getElementById('submit-btn').innerText = "আপডেট করুন";
+            switchTab('add-product');
+        }
+
+        function resetForm() {
+            document.getElementById('product-form').reset();
+            editingProductId = null;
+            document.getElementById('form-title').innerText = "নতুন পণ্য যোগ করুন";
+            document.getElementById('submit-btn').innerText = "সেভ করুন";
+        }
+
+        // List Products
+        db.collection("products").orderBy("createdAt", "desc").onSnapshot(snap => {
+            const tbody = document.getElementById('product-table-body');
+            tbody.innerHTML = '';
+            snap.forEach(doc => {
+                const p = doc.data();
+                const dataStr = encodeURIComponent(JSON.stringify(p));
+                const stockClass = p.stock > 0 ? '' : 'text-red-600 font-bold';
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2"><img src="${p.image}" class="w-10 h-10 object-cover rounded"></td>
+                        <td class="p-2 font-semibold line-clamp-1">${p.name}</td>
+                        <td class="p-2 ${stockClass}">${p.stock > 0 ? p.stock : 'স্টক আউট'}</td>
+                        <td class="p-2 text-xs">কিনা: ${p.buyingPrice || 'N/A'}<br>বেচা: ${p.price}</td>
+                        <td class="p-2 flex gap-2">
+                            <button onclick="editProduct('${doc.id}', '${dataStr}')" class="text-blue-500"><i class="fa-solid fa-edit"></i></button>
+                            <button onclick="deleteDoc('products', '${doc.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+            });
+        });
+
+        // --- 13. COUPONS MANAGEMENT ---
+        function loadCoupons() {
+            const container = document.getElementById('coupons-container');
+            container.innerHTML = '<div class="text-center py-4"><div class="spinner mb-2"></div><p class="text-gray-500 text-sm">কুপন লোড হচ্ছে...</p></div>';
+            
+            db.collection("coupons").orderBy("createdAt", "desc").onSnapshot(snap => {
+                container.innerHTML = '';
+                
+                if(snap.empty) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-8">কোনো কুপন নেই</p>';
+                    return;
+                }
+                
+                snap.forEach(doc => {
+                    const coupon = { id: doc.id, ...doc.data() };
+                    const expiryDate = coupon.expiryDate ? coupon.expiryDate.toDate() : null;
+                    const startDate = coupon.startDate ? coupon.startDate.toDate() : null;
+                    
+                    let discountText = '';
+                    if (coupon.type === 'percentage') {
+                        discountText = `${coupon.value}% ছাড়`;
+                        if (coupon.maxDiscount) {
+                            discountText += ` (সর্বোচ্চ ৳${coupon.maxDiscount})`;
+                        }
+                    } else if (coupon.type === 'fixed') {
+                        discountText = `৳${coupon.value} ছাড়`;
+                    }
+                    
+                    container.innerHTML += `
+                        <div class="border rounded-lg p-4 hover:bg-gray-50 ${coupon.active ? 'border-green-200' : 'border-red-200'}">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="font-bold text-lg">${coupon.code}</h3>
+                                        <span class="px-2 py-1 text-xs rounded ${coupon.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                            ${coupon.active ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </div>
+                                    <p class="text-gray-600 text-sm">${coupon.description || ''}</p>
+                                    <p class="text-green-600 font-bold text-sm mt-1">${discountText}</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="editCoupon('${doc.id}')" class="text-blue-500 text-sm"><i class="fa-solid fa-edit"></i></button>
+                                    <button onclick="deleteDoc('coupons', '${doc.id}')" class="text-red-500 text-sm"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                                <div>
+                                    <p>সর্বনিম্ন: ${coupon.minPurchase ? '৳' + coupon.minPurchase : 'N/A'}</p>
+                                    <p>ব্যবহার: ${coupon.usedCount || 0}/${coupon.usageLimit || '∞'}</p>
+                                </div>
+                                <div>
+                                    <p>শুরু: ${startDate ? startDate.toLocaleDateString('bn-BD') : 'N/A'}</p>
+                                    <p>মেয়াদ: ${expiryDate ? expiryDate.toLocaleDateString('bn-BD') : 'N/A'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        // Coupon Form Submit
+        document.getElementById('coupon-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const code = document.getElementById('c-code').value.trim().toUpperCase();
+            const description = document.getElementById('c-description').value;
+            const type = document.getElementById('c-type').value;
+            const value = Number(document.getElementById('c-value').value);
+            const maxDiscount = document.getElementById('c-max-discount').value ? Number(document.getElementById('c-max-discount').value) : null;
+            const minPurchase = document.getElementById('c-min-purchase').value ? Number(document.getElementById('c-min-purchase').value) : null;
+            const usageLimit = document.getElementById('c-usage-limit').value ? Number(document.getElementById('c-usage-limit').value) : null;
+            const startDate = document.getElementById('c-start-date').value ? new Date(document.getElementById('c-start-date').value) : null;
+            const expiryDate = document.getElementById('c-expiry-date').value ? new Date(document.getElementById('c-expiry-date').value) : null;
+            const active = document.getElementById('c-active').checked;
+            
+            if (!code || !value) {
+                alert("কোড এবং ডিসকাউন্ট ভ্যালু আবশ্যক");
+                return;
+            }
+            
+            // Check if coupon code already exists (only for new coupons)
+            if (!editingCouponId) {
+                const existing = await db.collection("coupons").where("code", "==", code).get();
+                if (!existing.empty) {
+                    alert("এই কোডটি ইতিমধ্যে ব্যবহৃত হয়েছে");
+                    return;
+                }
+            }
+            
+            const couponData = {
+                code,
+                description,
+                type,
+                value,
+                maxDiscount,
+                minPurchase,
+                usageLimit,
+                active,
+                usedCount: 0,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            if (startDate) couponData.startDate = firebase.firestore.Timestamp.fromDate(startDate);
+            if (expiryDate) couponData.expiryDate = firebase.firestore.Timestamp.fromDate(expiryDate);
+            
+            try {
+                if (editingCouponId) {
+                    await db.collection("coupons").doc(editingCouponId).update(couponData);
+                    alert("কুপন আপডেট হয়েছে!");
+                } else {
+                    couponData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection("coupons").add(couponData);
+                    alert("কুপন তৈরি হয়েছে!");
+                }
+                
+                // Reset form
+                document.getElementById('coupon-form').reset();
+                editingCouponId = null;
+                loadCoupons();
+                
+            } catch (error) {
+                console.error("Error saving coupon:", error);
+                alert("কুপন সেভ করতে সমস্যা: " + error.message);
+            }
+        });
+
+        function editCoupon(couponId) {
+            db.collection("coupons").doc(couponId).get().then(doc => {
+                if (doc.exists) {
+                    const coupon = doc.data();
+                    editingCouponId = couponId;
+                    
+                    // Fill form
+                    document.getElementById('c-code').value = coupon.code;
+                    document.getElementById('c-description').value = coupon.description || '';
+                    document.getElementById('c-type').value = coupon.type;
+                    document.getElementById('c-value').value = coupon.value;
+                    document.getElementById('c-max-discount').value = coupon.maxDiscount || '';
+                    document.getElementById('c-min-purchase').value = coupon.minPurchase || '';
+                    document.getElementById('c-usage-limit').value = coupon.usageLimit || '';
+                    document.getElementById('c-active').checked = coupon.active;
+                    
+                    // Format dates
+                    if (coupon.startDate) {
+                        const startDate = coupon.startDate.toDate();
+                        document.getElementById('c-start-date').value = startDate.toISOString().split('T')[0];
+                            }
+                            if (coupon.expiryDate) {
+                                const expiryDate = coupon.expiryDate.toDate();
+                                document.getElementById('c-expiry-date').value = expiryDate.toISOString().split('T')[0];
+                            }
+                            
+                            // Scroll to form
+                            document.querySelector('#coupon-form').scrollIntoView({ behavior: 'smooth' });
+                        }
+                    });
+                }
+
+                // --- 14. SETTINGS & DELIVERY ZONES ---
+                function loadSettings() {
+                    db.collection("settings").doc("config").onSnapshot(doc => {
+                        if(doc.exists) {
+                            const d = doc.data();
+                            document.getElementById('set-phone').value = d.merchantNumber || '';
+                            document.getElementById('set-company').value = d.companyName || '';
+                            document.getElementById('set-address').value = d.address || '';
+                            deliveryZones = d.deliveryZones || [];
+                            renderZones();
+                        }
+                    });
+                    // Load Offers
+                    db.collection("offers").onSnapshot(s => {
+                        const d = document.getElementById('offer-list'); d.innerHTML='';
+                        s.forEach(o => d.innerHTML+=`<div class="relative"><img src="${o.data().image}" class="h-24 w-full object-cover rounded"><button onclick="deleteDoc('offers','${o.id}')" class="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 text-xs rounded-full">X</button></div>`);
+                    });
+                }
+
+                function saveGeneralSettings() {
+                    const merchantNumber = document.getElementById('set-phone').value;
+                    const companyName = document.getElementById('set-company').value;
+                    const address = document.getElementById('set-address').value;
+                    
+                    db.collection("settings").doc("config").set({ 
+                        merchantNumber, 
+                        companyName, 
+                        address 
+                    }, { merge: true }).then(()=>alert("সেটিংস সেভ হয়েছে"));
+                }
+
+                function addZone() {
+                    const name = document.getElementById('zone-name').value;
+                    const charge = Number(document.getElementById('zone-cost').value);
+                    if(name && charge) {
+                        deliveryZones.push({ name, charge });
+                        updateZonesDb();
+                        document.getElementById('zone-name').value = '';
+                        document.getElementById('zone-cost').value = '';
+                    }
+                }
+
+                function removeZone(idx) {
+                    deliveryZones.splice(idx, 1);
+                    updateZonesDb();
+                }
+
+                function updateZonesDb() {
+                    db.collection("settings").doc("config").update({ deliveryZones });
+                }
+
+                function renderZones() {
+                    const list = document.getElementById('zone-list');
+                    list.innerHTML = '';
+                    deliveryZones.forEach((z, i) => {
+                        list.innerHTML += `
+                            <li class="flex justify-between bg-gray-50 p-2 rounded">
+                                <span>${z.name} - ৳${z.charge}</span>
+                                <button onclick="removeZone(${i})" class="text-red-500">X</button>
+                            </li>`;
+                    });
+                }
+
+                async function uploadOffer() {
+                    const file = document.getElementById('offer-file').files[0];
+                    if(!file) return;
+                    const formData = new FormData(); formData.append("image", file);
+                    try {
+                        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+                        const d = await res.json();
+                        if(d.success) await db.collection("offers").add({ image: d.data.url, date: firebase.firestore.FieldValue.serverTimestamp() });
+                    } catch(e){}
+                }
+
+                // --- 15. NEW ORDER NOTIFICATION ---
+                let lastOrderCount = 0;
+                
+                db.collection("orders").where("status", "==", "Pending").onSnapshot(snap => {
+                    const currentCount = snap.size;
+                    
+                    if (currentCount > lastOrderCount && lastOrderCount > 0) {
+                        // New pending order detected
+                        showNewOrderNotification();
+                    }
+                    
+                    lastOrderCount = currentCount;
+                });
+
+                function showNewOrderNotification() {
+                    // Create notification element
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed top-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-[100] animate-pulse';
+                    notification.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-bell text-xl"></i>
+                            <div>
+                                <h4 class="font-bold">নতুন অর্ডার!</h4>
+                                <p class="text-sm">একটি নতুন অর্ডার এসেছে। এখনই চেক করুন!</p>
+                            </div>
+                            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                                <i class="fa-solid fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(notification);
+                    
+                    // Auto remove after 5 seconds
+                    setTimeout(() => {
+                        if (notification.parentElement) {
+                            notification.remove();
+                        }
+                    }, 5000);
+                    
+                    // Play notification sound (optional)
+                    try {
+                        const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
+                        audio.play();
+                    } catch (e) {
+                        console.log("Audio notification failed:", e);
+                    }
+                }
+
+                // --- UTILITY FUNCTIONS ---
+                window.deleteDoc = (c, i) => {
+                    if (confirm("আপনি কি নিশ্চিত? এই কাজটি পূর্বাবস্থায় ফিরিয়ে আনা যাবে না।")) {
+                        db.collection(c).doc(i).delete().then(() => {
+                            alert("ডিলিট হয়েছে!");
+                        }).catch(err => {
+                            alert("ডিলিট ব্যর্থ: " + err.message);
+                        });
+                    }
+                };
+
+                // Initialize dashboard on load
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Add notification badge for new orders
+                    const ordersBtn = document.getElementById('btn-orders');
+                    const badge = document.createElement('span');
+                    badge.id = 'order-notification-badge';
+                    badge.className = 'hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center';
+                    ordersBtn.parentElement.style.position = 'relative';
+                    ordersBtn.parentElement.appendChild(badge);
+                    
+                    // Listen for new pending orders
+                    db.collection("orders").where("status", "==", "Pending").onSnapshot(snap => {
+                        const pendingCount = snap.size;
+                        if (pendingCount > 0) {
+                            badge.innerText = pendingCount;
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    });
+                });
+
+            </script>
+        </body>
+        </html>
