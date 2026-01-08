@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shopnora User App</title>
+    <title>ShopNora</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -21,6 +21,7 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #10B981; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .discount-badge { position: absolute; top: 8px; right: 8px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; z-index: 10; }
+        .add-to-cart-btn { margin-top: 8px; }
     </style>
 </head>
 <body class="pb-20">
@@ -190,7 +191,7 @@
                         </label>
                         <label class="flex items-center gap-2 border p-2 rounded cursor-pointer">
                             <input type="radio" name="payment" value="Nagad" onclick="togglePaymentFields()">
-                            <img src="https://freelogopng.com/images/all_img/1679248787nagad-logo.png" class="h-6"> নগদ (সেন্ড মানি)
+                            <img src="https://i.postimg.cc/yN45HVbM/images.jpg" class="h-6"> নগদ (সেন্ড মানি)
                         </label>
                     </div>
                     
@@ -337,11 +338,11 @@
                 <div>
                     <div class="flex items-center gap-3 mb-6">
                         <img src="https://i.postimg.cc/VNzGbSxM/20260102-184321.png" class="h-12">
-                        <span class="font-bold text-2xl text-green-400">Shopnora</span>
+                        <span class="font-bold text-2xl text-green-400">Bangladesh </span>
                     </div>
                     <p class="text-gray-400 mb-4">দিনাজপুরের সেরা অনলাইন শপিং প্ল্যাটফর্ম। গুণগতমানের পণ্য, দ্রুত ডেলিভারি এবং নির্ভরযোগ্য সার্ভিস।</p>
                     <div class="flex space-x-4">
-                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-facebook-f"></i></a>
+                        <a href="https://www.facebook.com/share/1DYVSSCH4h/" class="text-gray-400 hover:text-white"><i class="fab fa-facebook-f"></i></a>
                         <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-twitter"></i></a>
                         <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
                         <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-linkedin-in"></i></a>
@@ -406,7 +407,7 @@
                 <h4 class="text-center font-bold mb-4">সাপোর্টেড পেমেন্ট মেথড</h4>
                 <div class="flex justify-center space-x-6 mb-6">
                     <img src="https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" class="h-10">
-                    <img src="https://freelogopng.com/images/all_img/1679248787nagad-logo.png" class="h-10">
+                    <img src="https://i.postimg.cc/yN45HVbM/images.jpg" class="h-10">
                     <i class="fas fa-credit-card text-4xl text-gray-400"></i>
                     <i class="fas fa-money-bill-wave text-4xl text-gray-400"></i>
                 </div>
@@ -415,7 +416,7 @@
             <!-- Copyright -->
             <div class="text-center pt-6 border-t border-gray-800">
                 <p class="text-gray-500 text-sm">&copy; 2026 Shopnora. সকল অধিকার সংরক্ষিত।</p>
-                <p class="text-gray-600 text-xs mt-2">ডেভেলপড বাই <span class="text-green-400">Shopnora টেক টিম</span></p>
+                <p class="text-gray-600 text-xs mt-2">ডেভেলপড বাই <span class="text-green-400">ShopNora Team</span></p>
             </div>
         </div>
     </footer>
@@ -544,20 +545,23 @@
                 const btnState = p.stock > 0 ? `onclick="addToCart('${p.id}', '${p.name}', ${p.price}, ${buyPrice}, '${p.image}')"` : 'disabled';
                 
                 grid.innerHTML += `
-                    <div class="bg-white rounded shadow p-2 flex flex-col h-full hover:shadow-lg transition relative ${opacity}">
+                    <div class="bg-white rounded shadow p-3 flex flex-col h-full hover:shadow-lg transition relative ${opacity}">
                         ${stockStatus}
                         ${discountBadge}
                         <div class="h-32 bg-gray-100 rounded mb-2 overflow-hidden flex items-center justify-center cursor-pointer" onclick="openProductPage('${p.id}')">
                             <img src="${p.image}" class="h-full w-full object-contain">
                         </div>
-                        <h3 class="font-bold text-sm text-gray-800 line-clamp-2 cursor-pointer" onclick="openProductPage('${p.id}')">${p.name}</h3>
-                        <div class="mt-auto flex justify-between items-center pt-2">
-                            <div onclick="openProductPage('${p.id}')" class="cursor-pointer">
-                                <span class="text-green-600 font-bold">৳${p.price}</span>
-                                ${p.regularPrice && p.regularPrice > p.price ? `<span class="text-xs text-gray-400 line-through">৳${p.regularPrice}</span>` : ''}
-                            </div>
-                            <button ${btnState} onclick="event.stopPropagation(); addToCart('${p.id}', '${p.name}', ${p.price}, ${buyPrice}, '${p.image}')" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 shadow z-10">Add to cart</button>
+                        <h3 class="font-bold text-sm text-gray-800 line-clamp-2 cursor-pointer mb-1" onclick="openProductPage('${p.id}')">${p.name}</h3>
+                        
+                        <div class="mb-2" onclick="openProductPage('${p.id}')" class="cursor-pointer">
+                            <span class="text-green-600 font-bold text-lg">৳${p.price}</span>
+                            ${p.regularPrice && p.regularPrice > p.price ? `<span class="text-xs text-gray-400 line-through ml-1">৳${p.regularPrice}</span>` : ''}
                         </div>
+                        
+                        <button ${btnState} onclick="event.stopPropagation(); addToCart('${p.id}', '${p.name}', ${p.price}, ${buyPrice}, '${p.image}')" 
+                                class="mt-auto add-to-cart-btn bg-green-600 text-white w-full py-2 rounded text-sm hover:bg-green-700 shadow">
+                            <i class="fa-solid fa-cart-shopping mr-1"></i> Add to cart
+                        </button>
                     </div>`;
             });
         }
@@ -699,7 +703,23 @@
             const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
 
             try {
-                // 1. Save Order to Firestore
+                // 1. Update Stock for each product in cart
+                const stockUpdatePromises = [];
+                for (const item of cart) {
+                    const productRef = db.collection('products').doc(item.id);
+                    const productDoc = await productRef.get();
+                    if (productDoc.exists) {
+                        const currentStock = productDoc.data().stock || 0;
+                        const newStock = currentStock - item.qty;
+                        if (newStock < 0) {
+                            throw new Error(`${item.name} এর পর্যাপ্ত স্টক নেই`);
+                        }
+                        stockUpdatePromises.push(productRef.update({ stock: newStock }));
+                    }
+                }
+                await Promise.all(stockUpdatePromises);
+
+                // 2. Save Order to Firestore
                 await db.collection('orders').add({
                     orderId,
                     userId: currentUser ? currentUser.uid : null,
@@ -713,7 +733,7 @@
                     date: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // 2. Prepare Email Items List (HTML Format for Template)
+                // 3. Prepare Email Items List (HTML Format for Template)
                 const itemsHtml = cart.map(item => 
                     `<tr>
                         <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
@@ -722,7 +742,7 @@
                     </tr>`
                 ).join('');
 
-                // 3. Send Professional Email via EmailJS
+                // 4. Send Professional Email via EmailJS
                 if(email) {
                     const emailParams = {
                         to_name: name,
@@ -748,9 +768,16 @@
                 cart = []; updateCartUI();
                 document.getElementById('checkout-modal').classList.add('hidden');
                 document.getElementById('order-form').reset();
+                
+                // Refresh products to show updated stock
+                db.collection("products").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+                    allProducts = [];
+                    snapshot.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
+                    filterProducts();
+                });
             } catch (error) { 
                 console.error(error);
-                alert("অর্ডার ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"); 
+                alert("অর্ডার ব্যর্থ হয়েছে: " + error.message); 
             }
             
             btn.disabled = false;

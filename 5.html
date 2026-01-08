@@ -1,4 +1,4 @@
-.<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
@@ -94,6 +94,7 @@
                         <p class="text-gray-600 font-bold">স্টক ম্যানেজমেন্ট</p>
                         <p class="mt-2">মোট প্রোডাক্ট সংখ্যা: <span id="total-products" class="font-bold">0</span></p>
                         <p>স্টক ভ্যালু (ক্রয় মূল্য অনুযায়ী): <span id="stock-value" class="font-bold text-purple-700">৳0</span></p>
+                        <p class="mt-2 text-sm text-red-600">স্টক আউট পণ্য: <span id="out-of-stock-count" class="font-bold">0</span></p>
                     </div>
                 </div>
             </div>
@@ -353,14 +354,16 @@
 
             // Stock Stats
             db.collection("products").onSnapshot(snap => {
-                let count = 0, stockVal = 0;
+                let count = 0, stockVal = 0, outOfStockCount = 0;
                 snap.forEach(doc => {
                     const p = doc.data();
                     count++;
                     stockVal += (p.stock * (p.buyingPrice || 0));
+                    if(p.stock <= 0) outOfStockCount++;
                 });
                 document.getElementById('total-products').innerText = count;
                 document.getElementById('stock-value').innerText = '৳' + stockVal;
+                document.getElementById('out-of-stock-count').innerText = outOfStockCount;
             });
         }
 
@@ -421,6 +424,13 @@
 
             try {
                 if(editingProductId) {
+                    // If editing and no new image, keep the old image
+                    if(!imageUrl) {
+                        const oldDoc = await db.collection("products").doc(editingProductId).get();
+                        if(oldDoc.exists) {
+                            productData.image = oldDoc.data().image;
+                        }
+                    }
                     await db.collection("products").doc(editingProductId).update(productData);
                     alert("পণ্য আপডেট হয়েছে!");
                 } else {
@@ -467,11 +477,12 @@
             snap.forEach(doc => {
                 const p = doc.data();
                 const dataStr = encodeURIComponent(JSON.stringify(p));
+                const stockClass = p.stock > 0 ? '' : 'text-red-600 font-bold';
                 tbody.innerHTML += `
                     <tr class="border-b hover:bg-gray-50">
                         <td class="p-2"><img src="${p.image}" class="w-10 h-10 object-cover rounded"></td>
                         <td class="p-2 font-semibold line-clamp-1">${p.name}</td>
-                        <td class="p-2">${p.stock}</td>
+                        <td class="p-2 ${stockClass}">${p.stock > 0 ? p.stock : 'স্টক আউট'}</td>
                         <td class="p-2 text-xs">কিনা: ${p.buyingPrice || 'N/A'}<br>বেচা: ${p.price}</td>
                         <td class="p-2 flex gap-2">
                             <button onclick="editProduct('${doc.id}', '${dataStr}')" class="text-blue-500"><i class="fa-solid fa-edit"></i></button>

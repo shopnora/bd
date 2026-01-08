@@ -12,6 +12,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     
+    <!-- EmailJS Library -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    
     <style>
         body { font-family: 'Segoe UI', sans-serif; }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #10B981; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
@@ -28,7 +31,7 @@
             </a>
             <span class="font-bold text-green-600 text-lg hidden md:block">Shopnora</span>
         </div>
-        <a href="8.html" class="text-green-600 hover:text-green-800 font-bold">
+        <a href="index.html" class="text-green-600 hover:text-green-800 font-bold">
             <i class="fas fa-arrow-left mr-1"></i> সব পণ্যে ফিরে যান
         </a>
     </nav>
@@ -120,6 +123,9 @@
                         <button id="buy-now-btn" class="w-full bg-orange-500 text-white py-3 rounded-lg font-bold hover:bg-orange-600">
                             এখনই কিনুন
                         </button>
+                        <button id="direct-order-btn" class="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700">
+                            <i class="fas fa-bolt mr-2"></i> সরাসরি অর্ডার করুন
+                        </button>
                     </div>
 
                     <!-- Social Share -->
@@ -147,6 +153,83 @@
                     <!-- Similar products will be loaded here -->
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Direct Order Modal -->
+    <div id="direct-order-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md p-6 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4 text-green-700">সরাসরি অর্ডার</h2>
+            <form id="direct-order-form" class="space-y-3">
+                <!-- User Info -->
+                <input type="text" id="do-name" placeholder="নাম" class="w-full border p-2 rounded" required>
+                <input type="tel" id="do-phone" placeholder="মোবাইল নাম্বার" class="w-full border p-2 rounded" required>
+                <input type="email" id="do-email" placeholder="ইমেইল (রশিদের জন্য)" class="w-full border p-2 rounded" required>
+                
+                <!-- Delivery Zone Selection -->
+                <div class="mb-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ডেলিভারি এলাকা</label>
+                    <select id="do-zone" class="w-full border p-2 rounded bg-white" required onchange="calculateDirectOrderTotal()">
+                        <option value="">এলাকা নির্বাচন করুন</option>
+                    </select>
+                </div>
+
+                <textarea id="do-address" placeholder="বিস্তারিত ঠিকানা (বাড়ি/রোড নং)" class="w-full border p-2 rounded" required></textarea>
+                
+                <!-- Payment Method -->
+                <div class="mt-4">
+                    <p class="font-bold mb-2">পেমেন্ট মেথড:</p>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 border p-2 rounded cursor-pointer">
+                            <input type="radio" name="do-payment" value="COD" checked onclick="toggleDirectPaymentFields()">
+                            <i class="fa-solid fa-money-bill-wave text-green-600"></i> ক্যাশ অন ডেলিভারি
+                        </label>
+                        <label class="flex items-center gap-2 border p-2 rounded cursor-pointer">
+                            <input type="radio" name="do-payment" value="Bkash" onclick="toggleDirectPaymentFields()">
+                            <img src="https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" class="h-6"> বিকাশ (সেন্ড মানি)
+                        </label>
+                        <label class="flex items-center gap-2 border p-2 rounded cursor-pointer">
+                            <input type="radio" name="do-payment" value="Nagad" onclick="toggleDirectPaymentFields()">
+                            <img src="https://i.postimg.cc/yN45HVbM/images.jpg" class="h-6"> নগদ (সেন্ড মানি)
+                        </label>
+                    </div>
+                    
+                    <div id="do-manual-payment-info" class="hidden mt-3 p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                        <p class="font-bold text-blue-800" id="do-pay-number">সেন্ড মানি করুন: Loading...</p>
+                        <input type="text" id="do-trx-id" placeholder="Transaction ID (TrxID) লিখুন" class="w-full border p-2 rounded mt-2">
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="mt-4 p-3 bg-gray-50 rounded">
+                    <h3 class="font-bold mb-2">অর্ডার সুমারি</h3>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>পণ্য:</span>
+                        <span id="do-product-name">-</span>
+                    </div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>পরিমাণ:</span>
+                        <span id="do-product-qty">1</span>
+                    </div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>পণ্যের মূল্য:</span>
+                        <span id="do-product-price">৳0</span>
+                    </div>
+                    <div class="flex justify-between text-sm text-gray-600 mt-2">
+                        <span>ডেলিভারি চার্জ:</span>
+                        <span id="do-delivery">৳0</span>
+                    </div>
+                    <div class="flex justify-between font-bold text-lg text-green-700 border-t pt-2">
+                        <span>সর্বমোট:</span>
+                        <span id="do-grand-total">৳0</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-4">
+                    <button type="button" onclick="document.getElementById('direct-order-modal').classList.add('hidden')" class="text-gray-500">বাতিল</button>
+                    <button type="submit" id="btn-do-confirm-order" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">অর্ডার নিশ্চিত করুন</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -253,16 +336,30 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // EmailJS
+        (function(){ emailjs.init("a3zv_kwWYaRXOxpqO"); })();
 
         // --- Global Variables ---
         let currentProduct = null;
         let similarProducts = [];
         let quantity = 1;
+        let settings = { merchantNumber: "01737-470024", deliveryZones: [] };
 
         // --- Get Product ID from URL ---
         function getProductIdFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('id');
+        }
+
+        // --- Load Settings ---
+        function loadSettings() {
+            db.collection("settings").doc("config").get().then(doc => {
+                if(doc.exists) {
+                    settings = { ...settings, ...doc.data() };
+                }
+            });
         }
 
         // --- Load Product Details ---
@@ -288,6 +385,7 @@
                 currentProduct = { id: doc.id, ...doc.data() };
                 displayProductDetails();
                 loadSimilarProducts(currentProduct.category, currentProduct.id);
+                loadSettings();
                 
             } catch (error) {
                 console.error("Error loading product:", error);
@@ -335,23 +433,28 @@
             // Enable/disable buttons based on stock
             const addToCartBtn = document.getElementById('add-to-cart-btn');
             const buyNowBtn = document.getElementById('buy-now-btn');
+            const directOrderBtn = document.getElementById('direct-order-btn');
             const decreaseBtn = document.getElementById('decrease-qty');
             const increaseBtn = document.getElementById('increase-qty');
             
             if (product.stock > 0) {
                 addToCartBtn.disabled = false;
                 buyNowBtn.disabled = false;
+                directOrderBtn.disabled = false;
                 decreaseBtn.disabled = false;
                 increaseBtn.disabled = false;
                 addToCartBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 buyNowBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                directOrderBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             } else {
                 addToCartBtn.disabled = true;
                 buyNowBtn.disabled = true;
+                directOrderBtn.disabled = true;
                 decreaseBtn.disabled = true;
                 increaseBtn.disabled = true;
                 addToCartBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 buyNowBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                directOrderBtn.classList.add('opacity-50', 'cursor-not-allowed');
             }
             
             // Show product detail section
@@ -413,22 +516,23 @@
                 }
                 
                 container.innerHTML += `
-                    <div class="bg-white rounded shadow p-2 flex flex-col h-full hover:shadow-lg transition relative ${opacity}">
+                    <div class="bg-white rounded shadow p-3 flex flex-col h-full hover:shadow-lg transition relative ${opacity}">
                         ${stockStatus}
                         ${discountBadge}
                         <div class="h-32 bg-gray-100 rounded mb-2 overflow-hidden flex items-center justify-center cursor-pointer" onclick="viewProduct('${product.id}')">
                             <img src="${product.image}" class="h-full w-full object-contain">
                         </div>
-                        <h3 class="font-bold text-sm text-gray-800 line-clamp-2 cursor-pointer mb-2" onclick="viewProduct('${product.id}')">${product.name}</h3>
-                        <div class="mt-auto flex justify-between items-center pt-2">
-                            <div onclick="viewProduct('${product.id}')" class="cursor-pointer">
-                                <span class="text-green-600 font-bold">৳${product.price}</span>
-                                ${discount > 0 ? `<span class="text-xs text-red-500">${discount}% ছাড়</span>` : ''}
-                            </div>
-                            <button ${btnState} onclick="addToCartFromDetail('${product.id}', '${product.name}', ${product.price}, '${product.image}')" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 shadow">
-                                Add to cart
-                            </button>
+                        <h3 class="font-bold text-sm text-gray-800 line-clamp-2 cursor-pointer mb-1" onclick="viewProduct('${product.id}')">${product.name}</h3>
+                        
+                        <div class="mb-2" onclick="viewProduct('${product.id}')" class="cursor-pointer">
+                            <span class="text-green-600 font-bold text-lg">৳${product.price}</span>
+                            ${discount > 0 ? `<span class="text-xs text-gray-400 line-through ml-1">৳${product.regularPrice}</span>` : ''}
                         </div>
+                        
+                        <button ${btnState} onclick="event.stopPropagation(); addToCartFromDetail('${product.id}', '${product.name}', ${product.price}, '${product.image}')" 
+                                class="mt-auto bg-green-600 text-white w-full py-2 rounded text-sm hover:bg-green-700 shadow">
+                            <i class="fa-solid fa-cart-shopping mr-1"></i> Add to cart
+                        </button>
                     </div>
                 `;
             });
@@ -495,8 +599,200 @@
                 currentProduct.image
             );
             
-            // Open main page with cart
-            window.opener ? window.opener.location.href = '8.html#cart' : window.location.href = '8.html';
+            // Open cart on main page
+            window.open('8.html#cart', '_blank');
+        });
+
+        // --- Direct Order ---
+        document.getElementById('direct-order-btn').addEventListener('click', function() {
+            if (!currentProduct) return;
+            
+            if (currentProduct.stock < quantity) {
+                alert(`দুঃখিত, শুধুমাত্র ${currentProduct.stock} পিস স্টক আছে।`);
+                return;
+            }
+            
+            // Check if user is logged in
+            auth.onAuthStateChanged(user => {
+                if (!user) {
+                    alert("সরাসরি অর্ডার করার জন্য আপনাকে লগইন করতে হবে।");
+                    // Open login modal or redirect to login
+                    window.open('8.html#auth', '_blank');
+                    return;
+                }
+                
+                // Show direct order modal
+                document.getElementById('direct-order-modal').classList.remove('hidden');
+                
+                // Fill product info
+                document.getElementById('do-product-name').textContent = currentProduct.name;
+                document.getElementById('do-product-qty').textContent = quantity;
+                document.getElementById('do-product-price').textContent = '৳' + (currentProduct.price * quantity);
+                
+                // Load user data
+                db.collection("users").doc(user.uid).get().then(doc => {
+                    if(doc.exists) {
+                        const d = doc.data();
+                        document.getElementById('do-name').value = d.name || '';
+                        document.getElementById('do-phone').value = d.phone || '';
+                        document.getElementById('do-email').value = d.email || user.email || ''; 
+                        document.getElementById('do-address').value = d.address || '';
+                    }
+                });
+                
+                // Load Delivery Zones
+                const zoneSelect = document.getElementById('do-zone');
+                zoneSelect.innerHTML = '<option value="">এলাকা নির্বাচন করুন</option>';
+                if(settings.deliveryZones) {
+                    settings.deliveryZones.forEach((z, i) => {
+                        zoneSelect.innerHTML += `<option value="${i}">${z.name} (চার্জ: ৳${z.charge})</option>`;
+                    });
+                }
+                
+                calculateDirectOrderTotal();
+            });
+        });
+
+        // --- Calculate Direct Order Total ---
+        function calculateDirectOrderTotal() {
+            const subtotal = currentProduct.price * quantity;
+            const zoneIdx = document.getElementById('do-zone').value;
+            let delCharge = 0;
+            
+            if(zoneIdx !== "") {
+                delCharge = settings.deliveryZones[zoneIdx].charge;
+            }
+
+            document.getElementById('do-delivery').innerText = '৳' + delCharge;
+            document.getElementById('do-grand-total').innerText = '৳' + (subtotal + delCharge);
+        }
+
+        // --- Toggle Direct Payment Fields ---
+        function toggleDirectPaymentFields() {
+            const method = document.querySelector('input[name="do-payment"]:checked').value;
+            const manualDiv = document.getElementById('do-manual-payment-info');
+            if(method === 'COD') manualDiv.classList.add('hidden');
+            else {
+                manualDiv.classList.remove('hidden');
+                document.getElementById('do-pay-number').innerText = `${method} সেন্ড মানি করুন: ${settings.merchantNumber}`;
+            }
+        }
+
+        // --- Direct Order Form Submit ---
+        document.getElementById('direct-order-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-do-confirm-order');
+            btn.disabled = true;
+            btn.innerText = "অপেক্ষা করুন...";
+
+            const name = document.getElementById('do-name').value;
+            const phone = document.getElementById('do-phone').value;
+            const email = document.getElementById('do-email').value;
+            const address = document.getElementById('do-address').value;
+            const zoneIdx = document.getElementById('do-zone').value;
+            const method = document.querySelector('input[name="do-payment"]:checked').value;
+            const trxId = document.getElementById('do-trx-id').value;
+
+            if(zoneIdx === "") { 
+                btn.disabled = false; 
+                btn.innerText = "অর্ডার নিশ্চিত করুন"; 
+                return alert("ডেলিভারি এলাকা নির্বাচন করুন"); 
+            }
+            if(method !== 'COD' && !trxId) { 
+                btn.disabled = false; 
+                btn.innerText = "অর্ডার নিশ্চিত করুন"; 
+                return alert("TrxID দিন"); 
+            }
+
+            const deliveryCharge = settings.deliveryZones[zoneIdx].charge;
+            const subtotal = currentProduct.price * quantity;
+            const total = subtotal + deliveryCharge;
+            const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+
+            try {
+                // Check current user
+                const user = auth.currentUser;
+                if (!user) {
+                    throw new Error("ইউজার লগইন নেই।");
+                }
+
+                // 1. Update Stock
+                const productRef = db.collection('products').doc(currentProduct.id);
+                const productDoc = await productRef.get();
+                if (productDoc.exists) {
+                    const currentStock = productDoc.data().stock || 0;
+                    const newStock = currentStock - quantity;
+                    if (newStock < 0) {
+                        throw new Error(`${currentProduct.name} এর পর্যাপ্ত স্টক নেই`);
+                    }
+                    await productRef.update({ stock: newStock });
+                }
+
+                // 2. Create Order Item Array
+                const orderItems = [{
+                    id: currentProduct.id,
+                    name: currentProduct.name,
+                    price: currentProduct.price,
+                    buyingPrice: currentProduct.buyingPrice || 0,
+                    image: currentProduct.image,
+                    qty: quantity
+                }];
+
+                // 3. Save Order to Firestore
+                await db.collection('orders').add({
+                    orderId,
+                    userId: user.uid,
+                    customer: { name, phone, email, address },
+                    items: orderItems,
+                    subtotal,
+                    deliveryCharge,
+                    total,
+                    payment: { method, trxId: trxId || '' },
+                    status: 'Pending',
+                    date: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 4. Prepare Email
+                if(email) {
+                    const itemsHtml = `<tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">${currentProduct.name}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${quantity}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">৳${subtotal}</td>
+                    </tr>`;
+
+                    const emailParams = {
+                        to_name: name,
+                        to_email: email,
+                        order_id: orderId,
+                        order_date: new Date().toLocaleDateString('bn-BD'),
+                        order_items_html: itemsHtml,
+                        subtotal: subtotal,
+                        delivery_charge: deliveryCharge,
+                        total_amount: total,
+                        delivery_address: address,
+                        customer_phone: phone,
+                        payment_method: method
+                    };
+
+                    emailjs.send("service_g3p9jxw", "template_i20ls5b", emailParams)
+                        .then(() => console.log("Direct order email sent!"))
+                        .catch(err => console.error("Email failed:", err));
+                }
+
+                alert(`অর্ডার সফল! ID: ${orderId}\nআপনার ইমেইল চেক করুন।`);
+                document.getElementById('direct-order-modal').classList.add('hidden');
+                document.getElementById('direct-order-form').reset();
+                
+                // Update product stock display
+                await loadProductDetails();
+                
+            } catch (error) { 
+                console.error(error);
+                alert("অর্ডার ব্যর্থ হয়েছে: " + error.message); 
+            }
+            
+            btn.disabled = false;
+            btn.innerText = "অর্ডার নিশ্চিত করুন";
         });
 
         // --- View Product ---
